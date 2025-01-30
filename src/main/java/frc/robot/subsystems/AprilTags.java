@@ -29,12 +29,15 @@ public class AprilTags implements Subsystem {
 
     @Override
     public void periodic() {
-        var result = m_camera.getLatestResult();
-        var estimate = m_photonPoseEstimator.update(result);
-    
-        if (estimate.isPresent()) {
-            var est = estimate.get();
-            m_drivetrain.addVisionMeasurement(est.estimatedPose.toPose2d(), Utils.fpgaToCurrentTime(est.timestampSeconds));
+        var results = m_camera.getAllUnreadResults();
+
+        for (var result : results) {
+            var estimate = m_photonPoseEstimator.update(result);
+        
+            if (estimate.isPresent()) {
+                var est = estimate.get();
+                m_drivetrain.addVisionMeasurement(est.estimatedPose.toPose2d(), Utils.fpgaToCurrentTime(est.timestampSeconds));
+            }
         }
     }
 }
