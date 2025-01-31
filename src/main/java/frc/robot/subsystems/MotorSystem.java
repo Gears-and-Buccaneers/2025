@@ -9,6 +9,7 @@ import com.ctre.phoenix6.controls.StrictFollower;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 
@@ -42,6 +43,12 @@ public class MotorSystem implements Subsystem {
 
     public Command runWith(DoubleSupplier rate) {
         return run(() -> leader.setControl(cachedVout.withOutput(rate.getAsDouble() * voltageMax)));
+    }
+
+    public Command runWithLimit(DoubleSupplier rate, double limit) {
+        SlewRateLimiter accelLimiter = new SlewRateLimiter(limit);
+
+        return run(() -> leader.setControl(cachedVout.withOutput(accelLimiter.calculate(rate.getAsDouble()) * voltageMax)));
     }
 
     public Command runAt(double rate) {

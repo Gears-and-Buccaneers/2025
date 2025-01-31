@@ -91,7 +91,7 @@ public class Main extends TimedRobot {
         )
     );
 
-    elevator.setDefaultCommand(elevator.runWith(() -> operator.getRightY()));
+    elevator.setDefaultCommand(elevator.runWithLimit(() -> operator.getRightY(), 0.01));
     wrist.setDefaultCommand(wrist.runWith(() -> operator.getLeftY()));
     coral.setDefaultCommand(coral.brake());
     algae.setDefaultCommand(algae.brake());
