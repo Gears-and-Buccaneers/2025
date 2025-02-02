@@ -114,9 +114,8 @@ public class Main extends TimedRobot {
         forwardStraight.withVelocityX(-0.5).withVelocityY(0))
     );
 
-    // Run SysId routines when holding back/start and X/Y.
-    // Note that each routine should be run exactly once in a single log.
-    // driver.back().onTrue(drivetrain.characterise());
+    // Run SysId routines when holding back button.
+    driver.back().onTrue(drivetrain.characterise());
     // reset the field-centric heading on left bumper press
     driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
