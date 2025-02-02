@@ -11,7 +11,7 @@ import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 
-public class AprilTags implements Subsystem {    
+public class AprilTags implements Subsystem {
     private final PhotonCamera m_camera;
     private final PhotonPoseEstimator m_photonPoseEstimator;
 
@@ -21,7 +21,8 @@ public class AprilTags implements Subsystem {
         var fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
 
         m_camera = new PhotonCamera(cameraName);
-        m_photonPoseEstimator = new PhotonPoseEstimator(fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR, robotToCamera);
+        m_photonPoseEstimator = new PhotonPoseEstimator(fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,
+                robotToCamera);
         m_drivetrain = drivetrain;
 
         register();
@@ -33,10 +34,11 @@ public class AprilTags implements Subsystem {
 
         for (var result : results) {
             var estimate = m_photonPoseEstimator.update(result);
-        
+
             if (estimate.isPresent()) {
                 var est = estimate.get();
-                m_drivetrain.addVisionMeasurement(est.estimatedPose.toPose2d(), Utils.fpgaToCurrentTime(est.timestampSeconds));
+                m_drivetrain.addVisionMeasurement(est.estimatedPose.toPose2d(),
+                        Utils.fpgaToCurrentTime(est.timestampSeconds));
             }
         }
     }

@@ -30,20 +30,21 @@ import frc.robot.subsystems.MotorSystem;
 
 public class Main extends TimedRobot {
   private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-  private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+  private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max
+                                                                                    // angular velocity
 
   /* Setting up bindings for necessary control of the swerve drive platform */
   private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-          .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-          .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+      .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
+      .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
   private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
   private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
   private final SwerveRequest.RobotCentric forwardStraight = new SwerveRequest.RobotCentric()
-          .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+      .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
   private final Telemetry logger = new Telemetry(MaxSpeed);
 
-  private final CommandXboxController   driver = new CommandXboxController(0);
+  private final CommandXboxController driver = new CommandXboxController(0);
   private final CommandXboxController operator = new CommandXboxController(1);
 
   /* Initialise robot systems */
@@ -53,14 +54,16 @@ public class Main extends TimedRobot {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
   }, 0.3, 25);
-  public final MotorSystem wrist    = new MotorSystem((i, c) -> {
+  public final MotorSystem wrist = new MotorSystem((i, c) -> {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
   }, 0.3, 11);
-  public final MotorSystem coral    = new MotorSystem((i, c) -> {}, 0.3, 10);
-  public final MotorSystem algae    = new MotorSystem((i, c) -> {
+  public final MotorSystem coral = new MotorSystem((i, c) -> {
+  }, 0.3, 10);
+  public final MotorSystem algae = new MotorSystem((i, c) -> {
     // Invert the first motor.
-    if (i == 11) c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    if (i == 11)
+      c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
   }, 0.3, 30, 37);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(), drivetrain);
@@ -79,17 +82,18 @@ public class Main extends TimedRobot {
     SlewRateLimiter xRate = new SlewRateLimiter(0.1);
     SlewRateLimiter yRate = new SlewRateLimiter(0.1);
     SlewRateLimiter rRate = new SlewRateLimiter(0.1);
-    
+
     // Note that X is defined as forward according to WPILib convention,
     // and Y is defined as to the left according to WPILib convention.
     drivetrain.setDefaultCommand(
         // Drivetrain will execute this command periodically
         drivetrain.applyRequest(() ->
-            drive.withVelocityX(xRate.calculate(-driver.getLeftY() * MaxSpeed)) // Drive forward with negative Y (forward)
-                 .withVelocityY(yRate.calculate(-driver.getLeftX() * MaxSpeed)) // Drive left with negative X (left)
-                 .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate)) // Drive counterclockwise with negative X (left)
-        )
-    );
+        // Drive forward with negative Y (forward)
+        drive.withVelocityX(xRate.calculate(-driver.getLeftY() * MaxSpeed))
+            // Drive left with negative X (left)
+            .withVelocityY(yRate.calculate(-driver.getLeftX() * MaxSpeed))
+            // Drive counterclockwise with negative X (left)
+            .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate))));
 
     elevator.setDefaultCommand(elevator.runWithLimit(() -> operator.getRightY(), 0.01));
     wrist.setDefaultCommand(wrist.runWith(() -> operator.getLeftY()));
@@ -98,21 +102,16 @@ public class Main extends TimedRobot {
 
     operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
     operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
-    
+
     operator.rightBumper().whileTrue(coral.runAt(-1.0));
     operator.leftBumper().whileTrue(algae.runAt(-1.0));
 
     driver.a().whileTrue(drivetrain.applyRequest(() -> brake));
-    driver.b().whileTrue(drivetrain.applyRequest(() ->
-        point.withModuleDirection(new Rotation2d(-driver.getLeftY(), -driver.getLeftX()))
-    ));
+    driver.b().whileTrue(drivetrain
+        .applyRequest(() -> point.withModuleDirection(new Rotation2d(-driver.getLeftY(), -driver.getLeftX()))));
 
-    driver.pov(0).whileTrue(drivetrain.applyRequest(() ->
-        forwardStraight.withVelocityX(0.5).withVelocityY(0))
-    );
-    driver.pov(180).whileTrue(drivetrain.applyRequest(() ->
-        forwardStraight.withVelocityX(-0.5).withVelocityY(0))
-    );
+    driver.pov(0).whileTrue(drivetrain.applyRequest(() -> forwardStraight.withVelocityX(0.5).withVelocityY(0)));
+    driver.pov(180).whileTrue(drivetrain.applyRequest(() -> forwardStraight.withVelocityX(-0.5).withVelocityY(0)));
 
     // Run SysId routines when holding back button.
     driver.back().onTrue(drivetrain.characterise());
@@ -132,13 +131,16 @@ public class Main extends TimedRobot {
   }
 
   @Override
-  public void disabledInit() {}
+  public void disabledInit() {
+  }
 
   @Override
-  public void disabledPeriodic() {}
+  public void disabledPeriodic() {
+  }
 
   @Override
-  public void disabledExit() {}
+  public void disabledExit() {
+  }
 
   @Override
   public void autonomousInit() {
@@ -150,10 +152,12 @@ public class Main extends TimedRobot {
   }
 
   @Override
-  public void autonomousPeriodic() {}
+  public void autonomousPeriodic() {
+  }
 
   @Override
-  public void autonomousExit() {}
+  public void autonomousExit() {
+  }
 
   @Override
   public void teleopInit() {
@@ -167,7 +171,8 @@ public class Main extends TimedRobot {
   }
 
   @Override
-  public void teleopExit() {}
+  public void teleopExit() {
+  }
 
   @Override
   public void testInit() {
@@ -175,8 +180,10 @@ public class Main extends TimedRobot {
   }
 
   @Override
-  public void testPeriodic() {}
+  public void testPeriodic() {
+  }
 
   @Override
-  public void testExit() {}
+  public void testExit() {
+  }
 }

@@ -21,12 +21,13 @@ public class MotorSystem implements Subsystem {
     protected final TalonFX[] motors;
     protected final double voltageMax;
 
-    protected final  VoltageOut cachedVout  = new VoltageOut(0);
+    protected final VoltageOut cachedVout = new VoltageOut(0);
     protected final StaticBrake cachedBrake = new StaticBrake();
 
     public MotorSystem(BiConsumer<Integer, TalonFXConfiguration> configure, double maxOutPercent, int... ids) {
-        if (ids.length == 0) DriverStation.reportError("Constructed MotorSystem without any motors", true);
-        
+        if (ids.length == 0)
+            DriverStation.reportError("Constructed MotorSystem without any motors", true);
+
         this.voltageMax = maxOutPercent * 12.0;
         motors = new TalonFX[ids.length];
 
@@ -39,7 +40,8 @@ public class MotorSystem implements Subsystem {
             motors[i].getConfigurator().apply(config);
         }
 
-        for (int i = 1; i < motors.length; i++) motors[i].setControl(new StrictFollower(ids[0]));
+        for (int i = 1; i < motors.length; i++)
+            motors[i].setControl(new StrictFollower(ids[0]));
     }
 
     public Command runWith(DoubleSupplier rate) {
@@ -49,30 +51,34 @@ public class MotorSystem implements Subsystem {
     public Command runWithLimit(DoubleSupplier rate, double limit) {
         SlewRateLimiter accelLimiter = new SlewRateLimiter(limit);
 
-        return run(() -> motors[0].setControl(cachedVout.withOutput(accelLimiter.calculate(rate.getAsDouble()) * voltageMax)));
+        return run(() -> motors[0]
+                .setControl(cachedVout.withOutput(accelLimiter.calculate(rate.getAsDouble()) * voltageMax)));
     }
 
     public Command runAt(double rate) {
-        return startEnd(() -> motors[0].setControl(cachedVout.withOutput(rate * voltageMax)), () -> {});
+        return startEnd(() -> motors[0].setControl(cachedVout.withOutput(rate * voltageMax)), () -> {
+        });
     }
 
     public Command brake() {
-        return startEnd(() -> motors[0].setControl(cachedBrake), () -> {});
+        return startEnd(() -> motors[0].setControl(cachedBrake), () -> {
+        });
     }
 
     public Command characterise(boolean linear) {
         var routine = new SysIdRoutine(
-            new SysIdRoutine.Config(),
-            new SysIdRoutine.Mechanism(v -> motors[0].setControl(cachedVout.withOutput(v)), l -> {
-                for (var motor : motors)
-                    l.motor(motor.getDescription()).voltage(motor.getMotorVoltage().getValue()).angularPosition(motor.getPosition().getValue()).angularVelocity(motor.getVelocity().getValue());
-            }, this)
-        );
+                new SysIdRoutine.Config(),
+                new SysIdRoutine.Mechanism(v -> motors[0].setControl(cachedVout.withOutput(v)), l -> {
+                    for (var motor : motors)
+                        l.motor(motor.getDescription()).voltage(motor.getMotorVoltage().getValue())
+                                .angularPosition(motor.getPosition().getValue())
+                                .angularVelocity(motor.getVelocity().getValue());
+                }, this));
 
         return new SequentialCommandGroup(
-            routine.dynamic(Direction.kForward),
-            routine.dynamic(Direction.kReverse),
-            routine.quasistatic(Direction.kForward),
-            routine.quasistatic(Direction.kReverse));
+                routine.dynamic(Direction.kForward),
+                routine.dynamic(Direction.kReverse),
+                routine.quasistatic(Direction.kForward),
+                routine.quasistatic(Direction.kReverse));
     }
 }

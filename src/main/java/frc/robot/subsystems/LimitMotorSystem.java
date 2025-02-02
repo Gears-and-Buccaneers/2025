@@ -25,7 +25,8 @@ public class LimitMotorSystem extends MotorSystem {
             // TODO: reset the motor positions to the switch position.
 
             for (TalonFX motor : motors)
-                // If the switch is hit while any motors are running backwards, stop all of the motors.
+                // If the switch is hit while any motors are running backwards, stop all of the
+                // motors.
                 if (motor.getVelocity().getValueAsDouble() < 0.0) {
                     motors[0].setControl(cachedBrake);
                     break;
