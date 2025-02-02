@@ -12,7 +12,10 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.Subsystem;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 public class MotorSystem implements Subsystem {
     protected final TalonFX[] motors;
@@ -55,5 +58,21 @@ public class MotorSystem implements Subsystem {
 
     public Command brake() {
         return startEnd(() -> motors[0].setControl(cachedBrake), () -> {});
-    }   
+    }
+
+    public Command characterise(boolean linear) {
+        var routine = new SysIdRoutine(
+            new SysIdRoutine.Config(),
+            new SysIdRoutine.Mechanism(v -> motors[0].setControl(cachedVout.withOutput(v)), l -> {
+                for (var motor : motors)
+                    l.motor(motor.getDescription()).voltage(motor.getMotorVoltage().getValue()).angularPosition(motor.getPosition().getValue()).angularVelocity(motor.getVelocity().getValue());
+            }, this)
+        );
+
+        return new SequentialCommandGroup(
+            routine.dynamic(Direction.kForward),
+            routine.dynamic(Direction.kReverse),
+            routine.quasistatic(Direction.kForward),
+            routine.quasistatic(Direction.kReverse));
+    }
 }
