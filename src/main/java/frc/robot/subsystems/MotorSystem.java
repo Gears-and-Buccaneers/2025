@@ -17,8 +17,8 @@ public class MotorSystem implements Subsystem {
     protected final TalonFX leader;
     protected final double voltageMax;
 
-    private final  VoltageOut cachedVout  = new VoltageOut(0);
-    private final StaticBrake cachedBrake = new StaticBrake();
+    protected final  VoltageOut cachedVout  = new VoltageOut(0);
+    protected final StaticBrake cachedBrake = new StaticBrake();
 
     public MotorSystem(BiConsumer<Integer, TalonFXConfiguration> configure, double maxOutPercent, int leader, int... followers) {
         this.leader = new TalonFX(leader);
