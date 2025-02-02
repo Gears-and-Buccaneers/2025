@@ -10,52 +10,50 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 
 public class MotorSystem implements Subsystem {
-    protected final TalonFX leader;
+    protected final TalonFX[] motors;
     protected final double voltageMax;
 
     protected final  VoltageOut cachedVout  = new VoltageOut(0);
     protected final StaticBrake cachedBrake = new StaticBrake();
 
-    public MotorSystem(BiConsumer<Integer, TalonFXConfiguration> configure, double maxOutPercent, int leader, int... followers) {
-        this.leader = new TalonFX(leader);
+    public MotorSystem(BiConsumer<Integer, TalonFXConfiguration> configure, double maxOutPercent, int... ids) {
+        if (ids.length == 0) DriverStation.reportError("Constructed MotorSystem without any motors", true);
+        
         this.voltageMax = maxOutPercent * 12.0;
+        motors = new TalonFX[ids.length];
 
-        TalonFXConfiguration config = new TalonFXConfiguration();
-        configure.accept(leader, config);
-        this.leader.getConfigurator().apply(config);
+        for (int i = 0; i < ids.length; i++) {
+            motors[i] = new TalonFX(ids[i]);
 
-        for (int id : followers) {
-            config = new TalonFXConfiguration();
-            configure.accept(id, config);
+            TalonFXConfiguration config = new TalonFXConfiguration();
+            configure.accept(ids[i], config);
 
-            TalonFX motor = new TalonFX(id);
-
-            motor.getConfigurator().apply(config);
-            motor.setControl(new StrictFollower(leader));
-
-            motor.close();
+            motors[i].getConfigurator().apply(config);
         }
+
+        for (int i = 1; i < motors.length; i++) motors[i].setControl(new StrictFollower(ids[0]));
     }
 
     public Command runWith(DoubleSupplier rate) {
-        return run(() -> leader.setControl(cachedVout.withOutput(rate.getAsDouble() * voltageMax)));
+        return run(() -> motors[0].setControl(cachedVout.withOutput(rate.getAsDouble() * voltageMax)));
     }
 
     public Command runWithLimit(DoubleSupplier rate, double limit) {
         SlewRateLimiter accelLimiter = new SlewRateLimiter(limit);
 
-        return run(() -> leader.setControl(cachedVout.withOutput(accelLimiter.calculate(rate.getAsDouble()) * voltageMax)));
+        return run(() -> motors[0].setControl(cachedVout.withOutput(accelLimiter.calculate(rate.getAsDouble()) * voltageMax)));
     }
 
     public Command runAt(double rate) {
-        return startEnd(() -> leader.setControl(cachedVout.withOutput(rate * voltageMax)), () -> {});
+        return startEnd(() -> motors[0].setControl(cachedVout.withOutput(rate * voltageMax)), () -> {});
     }
 
     public Command brake() {
-        return startEnd(() -> leader.setControl(cachedBrake), () -> {});
-    }
+        return startEnd(() -> motors[0].setControl(cachedBrake), () -> {});
+    }   
 }
