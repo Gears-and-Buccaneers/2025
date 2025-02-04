@@ -11,8 +11,8 @@ public class LimitMotorSystem extends MotorSystem {
     private final DigitalInput limitSwitch;
 
     public LimitMotorSystem(int switchChannel, BiConsumer<Integer, TalonFXConfiguration> configure,
-            double maxOutPercent, int... ids) {
-        super(configure, maxOutPercent, ids);
+            double deadband, double maxOutPercent, int... ids) {
+        super(configure, deadband, maxOutPercent, ids);
         limitSwitch = new DigitalInput(switchChannel);
     }
 
@@ -21,6 +21,8 @@ public class LimitMotorSystem extends MotorSystem {
         super.periodic();
 
         // Each tick, check whether the limit switch has been hit.
-        if (!limitSwitch.get()) for (TalonFX motor : motors) motor.setPosition(0.0);
+        if (!limitSwitch.get())
+            for (TalonFX motor : motors)
+                motor.setPosition(0.0);
     }
 }
