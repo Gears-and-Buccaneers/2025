@@ -1,15 +1,20 @@
 package frc.robot.subsystems;
 
+import static edu.wpi.first.units.Units.Second;
+import static edu.wpi.first.units.Units.Volts;
+
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.StaticBrake;
 import com.ctre.phoenix6.controls.StrictFollower;
+import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
@@ -20,9 +25,10 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 public class MotorSystem implements Subsystem {
     protected final TalonFX[] motors;
     protected final double voltageMax;
-
+    
     protected final VoltageOut cachedVout = new VoltageOut(0);
     protected final StaticBrake cachedBrake = new StaticBrake();
+    protected final TorqueCurrentFOC cachedTorque = new TorqueCurrentFOC(0.0);
 
     public MotorSystem(BiConsumer<Integer, TalonFXConfiguration> configure, double maxOutPercent, int... ids) {
         if (ids.length == 0)
@@ -65,12 +71,14 @@ public class MotorSystem implements Subsystem {
         });
     }
 
-    public Command characterise(boolean linear) {
+    public Command characterise() {
         var routine = new SysIdRoutine(
-                new SysIdRoutine.Config(),
-                new SysIdRoutine.Mechanism(v -> motors[0].setControl(cachedVout.withOutput(v)), l -> {
+                new SysIdRoutine.Config(
+                        Volts.of(10.0).per(Second), Voltage.ofBaseUnits(9.0, Volts), null),
+                new SysIdRoutine.Mechanism(v ->  motors[0].setControl(cachedTorque.withOutput(v.in(Volts))), l -> {
                     for (var motor : motors)
-                        l.motor(motor.getDescription()).voltage(motor.getMotorVoltage().getValue())
+                        l.motor(motor.getDescription())
+                                .voltage(Voltage.ofBaseUnits(motor.getTorqueCurrent().getValueAsDouble(), Volts))
                                 .angularPosition(motor.getPosition().getValue())
                                 .angularVelocity(motor.getVelocity().getValue());
                 }, this));

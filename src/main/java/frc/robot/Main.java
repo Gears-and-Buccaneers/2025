@@ -26,6 +26,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
 import frc.robot.subsystems.AprilTags;
+import frc.robot.subsystems.LimitMotorSystem;
 import frc.robot.subsystems.MotorSystem;
 
 public class Main extends TimedRobot {
@@ -50,9 +51,23 @@ public class Main extends TimedRobot {
   /* Initialise robot systems */
   public final Swerve drivetrain = TunerConstants.createDrivetrain();
 
-  public final MotorSystem elevator = new MotorSystem((i, c) -> {
-    c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
+  public final MotorSystem elevator = new LimitMotorSystem(9, (i, c) -> {
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
+    
+    c.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    c.SoftwareLimitSwitch.ReverseSoftLimitThreshold = 5.0;
+
+    c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+    c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
+
+    c.Slot0.kP = 48;
+    c.Slot0.kD = 3;
+    c.Slot0.kS = 4.7;
+    c.Slot0.kG = 5.625;
+
+    c.MotionMagic.MotionMagicAcceleration = 9999;
+    c.MotionMagic.MotionMagicAcceleration = 180;
   }, 0.3, 25);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
@@ -79,9 +94,9 @@ public class Main extends TimedRobot {
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Autonomous path", autoChooser);
 
-    SlewRateLimiter xRate = new SlewRateLimiter(0.1);
-    SlewRateLimiter yRate = new SlewRateLimiter(0.1);
-    SlewRateLimiter rRate = new SlewRateLimiter(0.1);
+    SlewRateLimiter xRate = new SlewRateLimiter(5.0);
+    SlewRateLimiter yRate = new SlewRateLimiter(5.0);
+    SlewRateLimiter rRate = new SlewRateLimiter(5.0);
 
     // Note that X is defined as forward according to WPILib convention,
     // and Y is defined as to the left according to WPILib convention.

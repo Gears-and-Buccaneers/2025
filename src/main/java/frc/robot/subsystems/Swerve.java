@@ -180,7 +180,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     }
 
     /** Returns a Command which drives to the specified pose. */
-    public Command driveTo(Pose2d destination) {
+    public Command driveTo(Pose2d destination, double velocity) {
         // TODO: use the path-following PID controllers to move to the specified pose.
         return new Command() {
         };
@@ -210,7 +210,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
                 return new Command() {
                 };
 
-            return driveTo(dest);
+            return driveTo(dest, 0);
         });
     }
 
@@ -230,7 +230,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
                         new SysIdRoutine.Config(
                                 null, // Use default ramp rate (1 V/s)
                                 Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
-                                null, // Use default timeout (10 s)
+                                Seconds.of(5), // Use default timeout (10 s)
                                 // Log state with SignalLogger class
                                 state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
                         new SysIdRoutine.Mechanism(
