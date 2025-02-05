@@ -8,6 +8,7 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.auto.NamedCommands;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
 import static edu.wpi.first.units.Units.*;
@@ -61,25 +62,25 @@ public class Main extends TimedRobot {
     c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
     c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
 
-    c.Slot0.kP = 48;
-    c.Slot0.kD = 3;
-    c.Slot0.kS = 4.7;
-    c.Slot0.kG = 5.625;
+    c.Slot0.kP = 45;
+    c.Slot0.kD = 16;
+    c.Slot0.kS = 5;
+    c.Slot0.kG = 5;
 
     c.MotionMagic.MotionMagicAcceleration = 9999;
-    c.MotionMagic.MotionMagicAcceleration = 180;
-  }, 0.3, 25);
+    c.MotionMagic.MotionMagicAcceleration = 250;
+  }, 1.0, 0.3, 25);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
-  }, 0.3, 11);
+  }, 1.0, 0.3, 11);
   public final MotorSystem coral = new MotorSystem((i, c) -> {
-  }, 0.3, 10);
+  }, 1.0, 0.3, 10);
   public final MotorSystem algae = new MotorSystem((i, c) -> {
     // Invert the first motor.
     if (i == 11)
       c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
-  }, 0.3, 30, 37);
+  }, 1.0, 0.3, 30, 37);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(), drivetrain);
 
@@ -97,6 +98,14 @@ public class Main extends TimedRobot {
     SlewRateLimiter xRate = new SlewRateLimiter(5.0);
     SlewRateLimiter yRate = new SlewRateLimiter(5.0);
     SlewRateLimiter rRate = new SlewRateLimiter(5.0);
+
+    NamedCommands.registerCommand("Elevator To Low", elevator.goTo(0.0));
+    NamedCommands.registerCommand("Elevator At Low", elevator.atPoint(0.0));
+
+    NamedCommands.registerCommand("Elevator To Mid", elevator.goTo(50.0));
+    NamedCommands.registerCommand("Elevator At Mid", elevator.atPoint(50.0));
+    
+    NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
 
     // Note that X is defined as forward according to WPILib convention,
     // and Y is defined as to the left according to WPILib convention.
