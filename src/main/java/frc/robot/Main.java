@@ -62,17 +62,18 @@ public class Main extends TimedRobot {
     c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
     c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
 
-    c.Slot0.kP = 45;
-    c.Slot0.kD = 16;
+    c.Slot0.kP = 30;
+    c.Slot0.kD = 8;
     c.Slot0.kS = 5;
     c.Slot0.kG = 5;
 
-    c.MotionMagic.MotionMagicAcceleration = 9999;
+    c.MotionMagic.MotionMagicCruiseVelocity = 9999;
     c.MotionMagic.MotionMagicAcceleration = 250;
   }, 1.0, 0.3, 25);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+    c.Feedback.SensorToMechanismRatio = 125;
   }, 1.0, 0.3, 11);
   public final MotorSystem coral = new MotorSystem((i, c) -> {
   }, 1.0, 0.3, 10);
@@ -95,9 +96,9 @@ public class Main extends TimedRobot {
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Autonomous path", autoChooser);
 
-    SlewRateLimiter xRate = new SlewRateLimiter(5.0);
-    SlewRateLimiter yRate = new SlewRateLimiter(5.0);
-    SlewRateLimiter rRate = new SlewRateLimiter(5.0);
+    SlewRateLimiter xRate = new SlewRateLimiter( 5.0);
+    SlewRateLimiter yRate = new SlewRateLimiter( 5.0);
+    SlewRateLimiter rRate = new SlewRateLimiter(15.0);
 
     NamedCommands.registerCommand("Elevator To Low", elevator.goTo(0.0));
     NamedCommands.registerCommand("Elevator At Low", elevator.atPoint(0.0));
@@ -119,7 +120,7 @@ public class Main extends TimedRobot {
             // Drive counterclockwise with negative X (left)
             .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate))));
 
-    elevator.setDefaultCommand(elevator.runWithLimit(() -> operator.getRightY(), 0.01));
+    elevator.setDefaultCommand(elevator.runWithVel(() -> -operator.getRightY()));
     wrist.setDefaultCommand(wrist.runWith(() -> operator.getLeftY()));
     coral.setDefaultCommand(coral.brake());
     algae.setDefaultCommand(algae.brake());
