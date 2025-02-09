@@ -103,8 +103,11 @@ public class MotorSystem implements Subsystem {
         return new WaitUntilCommand(() -> Math.abs(motors[0].getPosition().getValueAsDouble() - position) < deadband);
     }
 
-    public Command goToStop(double position) {
-        return goTo(position).raceWith(atPoint(position));
+    public Command moveTo(double position) {
+        return startEnd(() -> {
+            double currentPosition = motors[0].getPosition().getValueAsDouble();
+            motors[0].setControl(cachedVout.withOutput(Math.copySign(voltageMax, position - currentPosition)));
+        }, () -> {}).raceWith(atPoint(position));
     }
 
     public Command characterise() {
