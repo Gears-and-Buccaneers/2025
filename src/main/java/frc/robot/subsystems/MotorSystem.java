@@ -14,7 +14,6 @@ import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 
-import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -61,11 +60,28 @@ public class MotorSystem implements Subsystem {
         return run(() -> motors[0].setControl(cachedVout.withOutput(rate.getAsDouble() * voltageMax)));
     }
 
-    public Command runWithLimit(DoubleSupplier rate, double limit) {
-        SlewRateLimiter accelLimiter = new SlewRateLimiter(limit);
+    public Command runWithVel(DoubleSupplier velocity) {       
+        Command cmd = new Command() {
+            double position;
+            
+            @Override
+            public void initialize() {
+                position = motors[0].getPosition().getValueAsDouble();
+            }
+            
+            @Override
+            public void execute() {
+                position += velocity.getAsDouble();
 
-        return run(() -> motors[0]
-                .setControl(cachedVout.withOutput(accelLimiter.calculate(rate.getAsDouble()) * voltageMax)));
+                if (position < 0.0) position = 0.0;
+
+                motors[0].setControl(cachedPosition.withPosition(position));
+            }
+        };
+
+        cmd.addRequirements(this);
+
+        return cmd;
     }
 
     public Command runAt(double rate) {
@@ -85,6 +101,10 @@ public class MotorSystem implements Subsystem {
 
     public Command atPoint(double position) {
         return new WaitUntilCommand(() -> Math.abs(motors[0].getPosition().getValueAsDouble() - position) < deadband);
+    }
+
+    public Command goToStop(double position) {
+        return goTo(position).raceWith(atPoint(position));
     }
 
     public Command characterise() {
