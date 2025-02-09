@@ -4,8 +4,10 @@
 
 package frc.robot;
 
+import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
@@ -71,12 +73,22 @@ public class Main extends TimedRobot {
     c.MotionMagic.MotionMagicAcceleration = 250;
   }, 1.0, 0.3, 25);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
-    c.MotorOutput.DutyCycleNeutralDeadband = 0.05;
+    c.MotorOutput.DutyCycleNeutralDeadband = 0.25;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
+
     c.Feedback.SensorToMechanismRatio = 125;
-  }, 1.0, 0.3, 11);
+
+    c.Slot0.kP = 1000;
+    c.Slot0.kD = 40;
+    c.Slot0.kS = 40;
+    c.Slot0.kG = 40;
+
+    c.Slot0.GravityType = GravityTypeValue.Arm_Cosine;
+    c.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
+  }, 1.0, 0.5, 11);
   public final MotorSystem coral = new MotorSystem((i, c) -> {
-  }, 1.0, 0.3, 10);
+    c.HardwareLimitSwitch.ReverseLimitAutosetPositionEnable = true;
+  }, 1.0, 0.15, 10);
   public final MotorSystem algae = new MotorSystem((i, c) -> {
     // Invert the first motor.
     if (i == 11)
@@ -121,7 +133,7 @@ public class Main extends TimedRobot {
             .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate))));
 
     elevator.setDefaultCommand(elevator.runWithVel(() -> -operator.getRightY()));
-    wrist.setDefaultCommand(wrist.runWith(() -> operator.getLeftY()));
+    wrist.setDefaultCommand(wrist.runWith(() -> -operator.getLeftY()));
     coral.setDefaultCommand(coral.brake());
     algae.setDefaultCommand(algae.brake());
 
