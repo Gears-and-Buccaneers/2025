@@ -156,6 +156,7 @@ public class Main extends TimedRobot {
     driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
     drivetrain.registerTelemetry(logger::telemeterize);
+    Locations.telemeterise();
   }
 
   @Override
