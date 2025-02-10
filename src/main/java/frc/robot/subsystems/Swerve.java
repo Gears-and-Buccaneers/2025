@@ -2,6 +2,7 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.SignalLogger;
@@ -13,6 +14,10 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
+import com.pathplanner.lib.path.GoalEndState;
+import com.pathplanner.lib.path.PathConstraints;
+import com.pathplanner.lib.path.PathPlannerPath;
+import com.pathplanner.lib.path.Waypoint;
 
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -47,8 +52,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
 
-    /** Swerve request to apply during robot-centric path following */
-    private final SwerveRequest.ApplyRobotSpeeds m_pathApplyRobotSpeeds = new SwerveRequest.ApplyRobotSpeeds();
+    public final PathConstraints constraints = new PathConstraints(3.0, 3.0, Math.toRadians(540.0),
+            Math.toRadians(720.0));
 
     /**
      * Constructs a CTRE SwerveDrivetrain using the specified constants.
@@ -142,13 +147,15 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private void configureAutoBuilder() {
         try {
             var config = RobotConfig.fromGUISettings();
+            var applySpeeds = new SwerveRequest.ApplyRobotSpeeds();
+
             AutoBuilder.configure(
                     () -> getState().Pose, // Supplier of current robot pose
                     this::resetPose, // Consumer for seeding pose against auto
                     () -> getState().Speeds, // Supplier of current robot speeds
                     // Consumer of ChassisSpeeds and feedforwards to drive the robot
                     (speeds, feedforwards) -> setControl(
-                            m_pathApplyRobotSpeeds.withSpeeds(speeds)
+                            applySpeeds.withSpeeds(speeds)
                                     .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
                                     .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())),
                     new PPHolonomicDriveController(
@@ -179,11 +186,18 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         return run(() -> this.setControl(requestSupplier.get()));
     }
 
-    /** Returns a Command which drives to the specified pose. */
+    /** Returns a Command which drives directly to the specified pose. */
     public Command driveTo(Pose2d destination, double velocity) {
-        // TODO: use the path-following PID controllers to move to the specified pose.
-        return new Command() {
-        };
+        Pose2d start = getState().Pose;
+
+        var path = new PathPlannerPath(
+                // Create two waypoints whose control points are the other point.
+                List.of(new Waypoint(null, start.getTranslation(), destination.getTranslation()),
+                        new Waypoint(start.getTranslation(), destination.getTranslation(), null)),
+                // Follow the global constraints, ending at the specified velocity and rotation.
+                constraints, null, new GoalEndState(velocity, destination.getRotation()));
+
+        return AutoBuilder.followPath(path);
     }
 
     /**
