@@ -46,7 +46,7 @@ public class Main extends TimedRobot {
   private final SwerveRequest.RobotCentric forwardStraight = new SwerveRequest.RobotCentric()
       .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
-  private final Telemetry logger = new Telemetry(MaxSpeed);
+  private final Telemetry logger = new Telemetry();
 
   private final CommandXboxController driver = new CommandXboxController(0);
   private final CommandXboxController operator = new CommandXboxController(1);
