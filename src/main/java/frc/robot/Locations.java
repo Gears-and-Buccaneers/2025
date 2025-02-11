@@ -79,17 +79,11 @@ public class Locations {
         return out.toArray(Pose2d[]::new);
     }
 
-    // Telemetry
-    public static void telemeterise() {
-        NetworkTable locations = NetworkTableInstance.getDefault().getTable("Locations");
+    public static void publish() {
+        NetworkTable table = NetworkTableInstance.getDefault().getTable("Locations");
 
-        telemeterisePoses(Locations.station, locations.getSubTable("Station"));
-        telemeterisePoses(Locations.reef, locations.getSubTable("Reef"));
-        telemeterisePoses(Locations.cage, locations.getSubTable("Cage"));
-    }
-
-    private static void telemeterisePoses(Pose2d[] poses, NetworkTable target) {
-        for (int j = 0; j < poses.length; j++)
-            target.getStructTopic(Integer.toString(j), Pose2d.struct).publish().set(poses[j]);
+        table.getStructArrayTopic("Station", Pose2d.struct).publish().set(station);
+        table.getStructArrayTopic("Reef", Pose2d.struct).publish().set(reef);
+        table.getStructArrayTopic("Cage", Pose2d.struct).publish().set(cage);
     }
 }

@@ -161,7 +161,7 @@ public class Main extends TimedRobot {
     driver.a().whileTrue(drivetrain.snapTo(Locations.station));
 
     drivetrain.registerTelemetry(logger::telemeterize);
-    Locations.telemeterise();
+    Locations.publish();
   }
 
   @Override
