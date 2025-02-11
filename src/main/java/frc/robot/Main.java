@@ -57,7 +57,7 @@ public class Main extends TimedRobot {
   public final MotorSystem elevator = new LimitMotorSystem(9, (i, c) -> {
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
-    
+
     c.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
     c.SoftwareLimitSwitch.ReverseSoftLimitThreshold = 5.0;
 
@@ -117,7 +117,7 @@ public class Main extends TimedRobot {
 
     NamedCommands.registerCommand("Elevator To Mid", elevator.goTo(50.0));
     NamedCommands.registerCommand("Elevator At Mid", elevator.atPoint(50.0));
-    
+
     NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
 
     // Note that X is defined as forward according to WPILib convention,
@@ -154,6 +154,11 @@ public class Main extends TimedRobot {
     driver.back().onTrue(drivetrain.characterise());
     // reset the field-centric heading on left bumper press
     driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+
+    driver.y().whileTrue(drivetrain.snapTo(Locations.cage));
+    driver.x().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft)));
+    driver.b().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
+    driver.a().whileTrue(drivetrain.snapTo(Locations.station));
 
     drivetrain.registerTelemetry(logger::telemeterize);
     Locations.telemeterise();

@@ -1,43 +1,85 @@
 package frc.robot;
 
 import static edu.wpi.first.units.Units.Inches;
+import static edu.wpi.first.units.Units.Meters;
+
+import java.util.ArrayList;
+import java.util.function.IntPredicate;
 
 import edu.wpi.first.apriltag.AprilTagFieldLayout;
 import edu.wpi.first.apriltag.AprilTagFields;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
+import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 
 public class Locations {
     private static AprilTagFieldLayout field = AprilTagFieldLayout.loadField(AprilTagFields.k2025Reefscape);
 
-    public static Pose2d[][] station = genPoses(new int[] { 1, 2, 12, 13 },
-            new Transform2d(0.0, 0.0, Rotation2d.k180deg),
-            new Transform2d(Inches.zero(), Inches.of(8.0), Rotation2d.kZero), -4, 4);
-
-    public static Pose2d[][] reef = genPoses(new int[] { 7, 8, 9, 10, 11, 6, 18, 17, 22, 21, 20, 19 },
-        new Transform2d(0.0, 0.0, Rotation2d.k180deg),
-        new Transform2d(Inches.zero(), Inches.of(12.937677), Rotation2d.kZero), 0, 1);
-
-     public static Pose2d[][] cage = genPoses(new int[] { 5, 14 },
-        new Transform2d(0.0, 0.0, Rotation2d.k180deg),
-        new Transform2d(Inches.zero(), Inches.of(42.937416), Rotation2d.kZero), -1, 1);
-
-    private static Pose2d[][] genPoses(int[] tags, Transform2d tagToBase, Transform2d step, int stepStart,
+    private static Pose2d[] genPoses(int[] tags, Translation2d tagToBase, double step, int stepStart,
             int stepEnd) {
-        Pose2d[][] poses = new Pose2d[tags.length][stepEnd - stepStart + 1];
+        int nSteps = stepEnd - stepStart + 1;
 
-        for (int tagI = 0; tagI < tags.length; tagI++) {
-            var base = field.getTagPose(tags[tagI]).get().toPose2d().transformBy(tagToBase);
-            for (int i = stepStart; i <= stepEnd; i++)
-                poses[tagI][i - stepStart] = base.transformBy(step.times(i));
+        Pose2d[] poses = new Pose2d[tags.length * nSteps];
+
+        int i = 0;
+
+        Transform2d tagToBaseXform = new Transform2d(tagToBase, Rotation2d.k180deg);
+
+        for (int tag : tags) {
+            var base = field.getTagPose(tag).get().toPose2d().transformBy(tagToBaseXform);
+
+            for (int j = stepStart; j <= stepEnd; j++) {
+                poses[i++] = base.transformBy(new Transform2d(0.0, step * j, Rotation2d.kZero));
+            }
         }
 
         return poses;
     }
 
+    public static Pose2d[] station = genPoses(new int[] { 1, 2, 13, 12 },
+            new Translation2d(0.0, 0.0), Inches.of(8.0).in(Meters), -4, 4);
+
+    public static IntPredicate stationIsRed = i -> i < 18;
+    public static IntPredicate stationIsLeft = i -> i % 18 < 9;
+
+    public static Pose2d[] reef = genPoses(new int[] { 7, 8, 9, 10, 11, 6, 18, 17, 22, 21, 20, 19 },
+            new Translation2d(0.0, 0.0), 0.32861700, 0, 1);
+
+    public static IntPredicate reefIsRed = i -> i < 12;
+    public static IntPredicate reefIsLeft = i -> switch (i % 12) {
+        // If the index is for one of the front three reef zones, then it is left if it
+        // is the first.
+        case 0, 2, 10 -> true;
+        // If it's for the back, then it's on the left if it's second.
+        case 5, 7, 9 -> true;
+        // Otherwise, it must be on the right side.
+        default -> false;
+    };
+
+    public static Pose2d[] cage = genPoses(new int[] { 5, 14 },
+            new Translation2d(0.0, 0.0), 1.0906104, -1, 1);
+
+    public static IntPredicate cageIsRed = i -> i < 3;
+
+    public static Pose2d[] processor = genPoses(new int[] { 3, 16 },
+            new Translation2d(0.0, 0.0), 0.0, 0, 0);
+
+    public static IntPredicate processorIsRed = i -> i == 0;
+
+    public static Pose2d[] withPredicate(Pose2d[] poses, IntPredicate pred) {
+        ArrayList<Pose2d> out = new ArrayList<>();
+
+        for (int i = 0; i < poses.length; i++)
+            if (pred.test(i))
+                out.add(poses[i]);
+
+        return out.toArray(Pose2d[]::new);
+    }
+
+    // Telemetry
     public static void telemeterise() {
         NetworkTable locations = NetworkTableInstance.getDefault().getTable("Locations");
 
@@ -46,13 +88,8 @@ public class Locations {
         telemeterisePoses(Locations.cage, locations.getSubTable("Cage"));
     }
 
-    private static void telemeterisePoses(Pose2d[][] poses, NetworkTable target) {
-        for (int i = 0; i < poses.length; i++) {
-            NetworkTable sub = target.getSubTable(Integer.toString(i));
-
-            for (int j = 0; j < poses[i].length; j++) {
-                sub.getStructTopic(Integer.toString(j), Pose2d.struct).publish().set(poses[i][j]);
-            }
-        }
+    private static void telemeterisePoses(Pose2d[] poses, NetworkTable target) {
+        for (int j = 0; j < poses.length; j++)
+            target.getStructTopic(Integer.toString(j), Pose2d.struct).publish().set(poses[j]);
     }
 }
