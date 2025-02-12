@@ -20,6 +20,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -113,6 +114,8 @@ public class Main extends TimedRobot {
   }
 
   public Main() {
+    DriverStation.silenceJoystickConnectionWarning(true);
+
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Autonomous path", autoChooser);
 
