@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
 import frc.robot.subsystems.AprilTags;
+import frc.robot.subsystems.LEDs;
 import frc.robot.subsystems.LimitMotorSystem;
 import frc.robot.subsystems.MotorSystem;
 
@@ -96,6 +97,8 @@ public class Main extends TimedRobot {
   }, 1.0, 0.3, 30, 37);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(), drivetrain);
+
+  public final LEDs leds = new LEDs(1);
 
   private Command m_autonomousCommand;
   private final SendableChooser<Command> autoChooser;
