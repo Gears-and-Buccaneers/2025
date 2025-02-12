@@ -96,7 +96,10 @@ public class Main extends TimedRobot {
       c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
   }, 1.0, 0.3, 30, 37);
 
-  public final AprilTags tags = new AprilTags("camera", new Transform3d(), drivetrain);
+  public final AprilTags tags = new AprilTags("camera", new Transform3d(
+      new Translation3d(Inches.of(15.0), Inches.zero(), Inches.of(4.25)),
+      new Rotation3d(Degrees.zero(), Degrees.of(-30), Degrees.zero())),
+      drivetrain);
 
   public final LEDs leds = new LEDs(1);
 

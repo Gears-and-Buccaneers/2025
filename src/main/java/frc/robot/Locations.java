@@ -46,7 +46,7 @@ public class Locations {
     public static IntPredicate stationIsLeft = i -> i % 18 < 9;
 
     public static Pose2d[] reef = genPoses(new int[] { 7, 8, 9, 10, 11, 6, 18, 17, 22, 21, 20, 19 },
-            new Translation2d(0.0, 0.0), 0.32861700, 0, 1);
+            new Translation2d(0.52705, -0.368), -0.32861700, 0, 1);
 
     public static IntPredicate reefIsRed = i -> i < 12;
     public static IntPredicate reefIsLeft = i -> switch (i % 12) {
