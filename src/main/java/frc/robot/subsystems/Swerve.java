@@ -2,7 +2,6 @@ package frc.robot.subsystems;
 
 import static edu.wpi.first.units.Units.*;
 
-import java.util.List;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.SignalLogger;
@@ -14,17 +13,18 @@ import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPHolonomicDriveController;
-import com.pathplanner.lib.path.GoalEndState;
 import com.pathplanner.lib.path.PathConstraints;
-import com.pathplanner.lib.path.PathPlannerPath;
-import com.pathplanner.lib.path.Waypoint;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.Notifier;
@@ -52,8 +52,27 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
 
-    public final PathConstraints constraints = new PathConstraints(3.0, 3.0, Math.toRadians(540.0),
+    public final PathConstraints pathConstraints = new PathConstraints(3.0, 3.0, Math.toRadians(540.0),
             Math.toRadians(720.0));
+
+    // PID constants for translation
+    private final PIDConstants translation = new PIDConstants(10, 0, 0);
+    private final Constraints translationConstraints = new Constraints(pathConstraints.maxVelocityMPS(),
+            pathConstraints.maxAccelerationMPSSq());
+    // PID constants for rotation
+    private final PIDConstants rotation = new PIDConstants(7, 0, 0);
+    private final Constraints rotationConstraints = new Constraints(pathConstraints.maxAngularVelocityRadPerSec(),
+            pathConstraints.maxAngularAccelerationRadPerSecSq());
+
+    // Profiled PID controllers for direct control
+    private final ProfiledPIDController xPID = new ProfiledPIDController(translation.kP, translation.kI,
+            translation.kD, translationConstraints);
+    private final ProfiledPIDController yPID = new ProfiledPIDController(translation.kP, translation.kI, translation.kD,
+            translationConstraints);
+    private final ProfiledPIDController rPID = new ProfiledPIDController(rotation.kP, rotation.kI, rotation.kD,
+            rotationConstraints);
+
+    private final SwerveRequest.FieldCentric fieldCentric = new SwerveRequest.FieldCentric();
 
     /**
      * Constructs a CTRE SwerveDrivetrain using the specified constants.
@@ -145,6 +164,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     }
 
     private void configureAutoBuilder() {
+        rPID.enableContinuousInput(-Math.PI, Math.PI);
+
         try {
             var config = RobotConfig.fromGUISettings();
             var applySpeeds = new SwerveRequest.ApplyRobotSpeeds();
@@ -158,11 +179,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
                             applySpeeds.withSpeeds(speeds)
                                     .withWheelForceFeedforwardsX(feedforwards.robotRelativeForcesXNewtons())
                                     .withWheelForceFeedforwardsY(feedforwards.robotRelativeForcesYNewtons())),
-                    new PPHolonomicDriveController(
-                            // PID constants for translation
-                            new PIDConstants(10, 0, 0),
-                            // PID constants for rotation
-                            new PIDConstants(7, 0, 0)),
+                    new PPHolonomicDriveController(translation, rotation),
                     config,
                     // Assume the path needs to be flipped for Red vs Blue, this is normally the
                     // case
@@ -187,17 +204,22 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     }
 
     /** Returns a Command which drives directly to the specified pose. */
-    public Command driveTo(Pose2d destination, double velocity) {
-        Pose2d start = getState().Pose;
+    public Command driveTo(Pose2d destination, Pose2d velocity) {
+        return startRun(() -> {
+            xPID.setGoal(new TrapezoidProfile.State(destination.getX(), velocity.getX()));
+            yPID.setGoal(new TrapezoidProfile.State(destination.getY(), velocity.getY()));
+            rPID.setGoal(new TrapezoidProfile.State(
+                    MathUtil.angleModulus(destination.getRotation().getRadians()),
+                    MathUtil.angleModulus(velocity.getRotation().getRadians())));
+        }, () -> {
+            var pose = getState().Pose;
 
-        var path = new PathPlannerPath(
-                // Create two waypoints whose control points are the other point.
-                List.of(new Waypoint(null, start.getTranslation(), destination.getTranslation()),
-                        new Waypoint(start.getTranslation(), destination.getTranslation(), null)),
-                // Follow the global constraints, ending at the specified velocity and rotation.
-                constraints, null, new GoalEndState(velocity, destination.getRotation()));
+            var x = xPID.calculate(pose.getX());
+            var y = xPID.calculate(pose.getY());
+            var r = xPID.calculate(MathUtil.angleModulus(pose.getRotation().getRadians()));
 
-        return AutoBuilder.followPath(path);
+            setControl(fieldCentric.withVelocityX(x).withVelocityY(y).withRotationalRate(r));
+        });
     }
 
     /**
@@ -224,7 +246,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
                 return new Command() {
                 };
 
-            return driveTo(dest, 0);
+            return driveTo(dest, Pose2d.kZero);
         });
     }
 
