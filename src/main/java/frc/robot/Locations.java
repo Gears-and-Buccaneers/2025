@@ -39,22 +39,25 @@ public class Locations {
         return poses;
     }
 
+    private static double coralOffset = 0.204;
+    private static double branchOffset = 0.164;
+
     public static Pose2d[] station = genPoses(new int[] { 1, 2, 13, 12 },
-            new Translation2d(0.0, 0.0), Inches.of(8.0).in(Meters), -4, 4);
+            new Translation2d(0.5, -coralOffset), Inches.of(8.0).in(Meters), -4, 4);
 
     public static IntPredicate stationIsRed = i -> i < 18;
     public static IntPredicate stationIsLeft = i -> i % 18 < 9;
 
     public static Pose2d[] reef = genPoses(new int[] { 7, 8, 9, 10, 11, 6, 18, 17, 22, 21, 20, 19 },
-            new Translation2d(0.52705, -0.368), -0.32861700, 0, 1);
+            new Translation2d(0.527, branchOffset - coralOffset), branchOffset * 2, 0, 1);
 
     public static IntPredicate reefIsRed = i -> i < 12;
     public static IntPredicate reefIsLeft = i -> switch (i % 12) {
         // If the index is for one of the front three reef zones, then it is left if it
-        // is the first.
-        case 0, 2, 10 -> true;
-        // If it's for the back, then it's on the left if it's second.
-        case 5, 7, 9 -> true;
+        // is the second.
+        case 1, 3, 11 -> true;
+        // If it's for the back, then it's on the left if it's first.
+        case 4, 6, 8 -> true;
         // Otherwise, it must be on the right side.
         default -> false;
     };
