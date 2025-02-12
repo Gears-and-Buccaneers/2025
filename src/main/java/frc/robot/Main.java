@@ -17,7 +17,9 @@ import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -59,11 +61,11 @@ public class Main extends TimedRobot {
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
 
-    c.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-    c.SoftwareLimitSwitch.ReverseSoftLimitThreshold = 5.0;
+    // c.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
+    // c.SoftwareLimitSwitch.ReverseSoftLimitThreshold = 5.0;
 
-    c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
+    // c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
+    // c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
 
     c.Slot0.kP = 30;
     c.Slot0.kD = 8;
@@ -94,7 +96,7 @@ public class Main extends TimedRobot {
     // Invert the first motor.
     if (i == 11)
       c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
-  }, 1.0, 0.3, 30, 37);
+  }, 1.0, 0.3, 14);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(
       new Translation3d(Inches.of(15.0), Inches.zero(), Inches.of(4.25)),
@@ -114,8 +116,8 @@ public class Main extends TimedRobot {
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Autonomous path", autoChooser);
 
-    SlewRateLimiter xRate = new SlewRateLimiter( 5.0);
-    SlewRateLimiter yRate = new SlewRateLimiter( 5.0);
+    SlewRateLimiter xRate = new SlewRateLimiter(5.0);
+    SlewRateLimiter yRate = new SlewRateLimiter(5.0);
     SlewRateLimiter rRate = new SlewRateLimiter(15.0);
 
     NamedCommands.registerCommand("Elevator To Low", elevator.goTo(0.0));
@@ -138,7 +140,7 @@ public class Main extends TimedRobot {
             // Drive counterclockwise with negative X (left)
             .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate))));
 
-    elevator.setDefaultCommand(elevator.runWithVel(() -> -operator.getRightY()));
+    elevator.setDefaultCommand(elevator.runWith(() -> -operator.getRightY()));
     wrist.setDefaultCommand(wrist.runWith(() -> -operator.getLeftY()));
     coral.setDefaultCommand(coral.brake());
     algae.setDefaultCommand(algae.brake());
