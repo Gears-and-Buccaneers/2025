@@ -7,6 +7,6 @@ public class LEDs {
 
     public LEDs(int channel) {
         this.candle = new CANdle(channel, "drivetrain");
-        this.candle.setLEDs(100, 100, 100);
+        this.candle.setLEDs(0, 54, 140);
     }
 }
