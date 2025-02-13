@@ -11,12 +11,10 @@ import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
-import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.filter.SlewRateLimiter;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -43,12 +41,8 @@ public class Main extends TimedRobot {
 
   /* Setting up bindings for necessary control of the swerve drive platform */
   private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-      .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-      .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+      .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1); // Add a 10% deadband
   private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
-  private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
-  private final SwerveRequest.RobotCentric forwardStraight = new SwerveRequest.RobotCentric()
-      .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
   private final Telemetry logger = new Telemetry();
 
@@ -58,7 +52,7 @@ public class Main extends TimedRobot {
   /* Initialise robot systems */
   public final Swerve drivetrain = TunerConstants.createDrivetrain();
 
-  public final MotorSystem elevator = new LimitMotorSystem(9, (i, c) -> {
+  public final LimitMotorSystem elevator = new LimitMotorSystem(9, (i, c) -> {
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
 
@@ -143,33 +137,36 @@ public class Main extends TimedRobot {
             // Drive counterclockwise with negative X (left)
             .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate))));
 
-    elevator.setDefaultCommand(elevator.runWith(() -> -operator.getRightY()));
+    // Brake mode.
+    driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
+
+    // Run SysId routines when holding the back button.
+    driver.back().onTrue(drivetrain.characterise());
+    // Reset the field-centric heading on left bumper press
+    driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+
+    // Snap to the nearest point-of-interest while holding POV buttons.
+    driver.povUp().whileTrue(drivetrain.snapTo(Locations.cage));
+    driver.povLeft().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft)));
+    driver.povRight().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
+    driver.povDown().whileTrue(drivetrain.snapTo(Locations.station));
+
+    // Switch to coast-mode once we're within deadband of the zero position.
+    elevator.setDefaultCommand(elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()));
+    // Manual, voltage-based override for the elevator.
+    operator.povDown().whileTrue(elevator.runWith(() -> -operator.getRightY()));
+
     wrist.setDefaultCommand(wrist.runWith(() -> -operator.getLeftY()));
     coral.setDefaultCommand(coral.brake());
     algae.setDefaultCommand(algae.brake());
 
+    // Control the coral receptacle with the right triggle & bumper.
     operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
-    operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
-
     operator.rightBumper().whileTrue(coral.runAt(-1.0));
+    
+    // Control the algae receptacle with the right triggle & bumper.
+    operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
     operator.leftBumper().whileTrue(algae.runAt(-1.0));
-
-    driver.a().whileTrue(drivetrain.applyRequest(() -> brake));
-    driver.b().whileTrue(drivetrain
-        .applyRequest(() -> point.withModuleDirection(new Rotation2d(-driver.getLeftY(), -driver.getLeftX()))));
-
-    driver.pov(0).whileTrue(drivetrain.applyRequest(() -> forwardStraight.withVelocityX(0.5).withVelocityY(0)));
-    driver.pov(180).whileTrue(drivetrain.applyRequest(() -> forwardStraight.withVelocityX(-0.5).withVelocityY(0)));
-
-    // Run SysId routines when holding back button.
-    driver.back().onTrue(drivetrain.characterise());
-    // reset the field-centric heading on left bumper press
-    driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
-
-    driver.y().whileTrue(drivetrain.snapTo(Locations.cage));
-    driver.x().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft)));
-    driver.b().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
-    driver.a().whileTrue(drivetrain.snapTo(Locations.station));
 
     drivetrain.registerTelemetry(logger::telemeterize);
     Locations.publish();

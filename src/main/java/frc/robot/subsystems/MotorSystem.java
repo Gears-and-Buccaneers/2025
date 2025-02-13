@@ -7,6 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.CoastOut;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.StaticBrake;
 import com.ctre.phoenix6.controls.StrictFollower;
@@ -30,6 +31,7 @@ public class MotorSystem implements Subsystem {
 
     protected final VoltageOut cachedVout = new VoltageOut(0);
     protected final StaticBrake cachedBrake = new StaticBrake();
+    protected final CoastOut cachedCoast = new CoastOut();
     protected final TorqueCurrentFOC cachedTorque = new TorqueCurrentFOC(0.0);
     protected final MotionMagicTorqueCurrentFOC cachedPosition = new MotionMagicTorqueCurrentFOC(0.0);
 
@@ -60,36 +62,17 @@ public class MotorSystem implements Subsystem {
         return run(() -> motors[0].setControl(cachedVout.withOutput(rate.getAsDouble() * voltageMax)));
     }
 
-    public Command runWithVel(DoubleSupplier velocity) {       
-        Command cmd = new Command() {
-            double position;
-            
-            @Override
-            public void initialize() {
-                position = motors[0].getPosition().getValueAsDouble();
-            }
-            
-            @Override
-            public void execute() {
-                position += velocity.getAsDouble();
-
-                if (position < 0.0) position = 0.0;
-
-                motors[0].setControl(cachedPosition.withPosition(position));
-            }
-        };
-
-        cmd.addRequirements(this);
-
-        return cmd;
-    }
-
     public Command runAt(double rate) {
         return startEnd(() -> motors[0].setControl(cachedVout.withOutput(rate * voltageMax)), () -> {
         });
     }
 
     public Command brake() {
+        return startEnd(() -> motors[0].setControl(cachedBrake), () -> {
+        });
+    }
+
+    public Command coast() {
         return startEnd(() -> motors[0].setControl(cachedBrake), () -> {
         });
     }
