@@ -65,8 +65,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             pathConstraints.maxAngularAccelerationRadPerSecSq());
 
     // Profiled PID controllers for direct control
-    private final ProfiledPIDController xPID = new ProfiledPIDController(translation.kP, translation.kI,
-            translation.kD, translationConstraints);
+    private final ProfiledPIDController xPID = new ProfiledPIDController(translation.kP, translation.kI, translation.kD,
+            translationConstraints);
     private final ProfiledPIDController yPID = new ProfiledPIDController(translation.kP, translation.kI, translation.kD,
             translationConstraints);
     private final ProfiledPIDController rPID = new ProfiledPIDController(rotation.kP, rotation.kI, rotation.kD,
@@ -206,6 +206,12 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     /** Returns a Command which drives directly to the specified pose. */
     public Command driveTo(Pose2d destination, Pose2d velocity) {
         return startRun(() -> {
+            var state = getState();
+
+            xPID.reset(state.Pose.getX(), state.Speeds.vxMetersPerSecond);
+            yPID.reset(state.Pose.getY(), state.Speeds.vyMetersPerSecond);
+            rPID.reset(MathUtil.angleModulus(state.Pose.getRotation().getRadians()), state.Speeds.omegaRadiansPerSecond);
+
             xPID.setGoal(new TrapezoidProfile.State(destination.getX(), velocity.getX()));
             yPID.setGoal(new TrapezoidProfile.State(destination.getY(), velocity.getY()));
             rPID.setGoal(new TrapezoidProfile.State(
@@ -215,8 +221,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             var pose = getState().Pose;
 
             var x = xPID.calculate(pose.getX());
-            var y = xPID.calculate(pose.getY());
-            var r = xPID.calculate(MathUtil.angleModulus(pose.getRotation().getRadians()));
+            var y = yPID.calculate(pose.getY());
+            var r = rPID.calculate(MathUtil.angleModulus(pose.getRotation().getRadians()));
 
             setControl(fieldCentric.withVelocityX(x).withVelocityY(y).withRotationalRate(r));
         });
