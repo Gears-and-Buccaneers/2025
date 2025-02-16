@@ -6,6 +6,7 @@ import static edu.wpi.first.units.Units.Volts;
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
 
+import com.ctre.phoenix6.StatusSignal;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.CoastOut;
 import com.ctre.phoenix6.controls.MotionMagicTorqueCurrentFOC;
@@ -15,6 +16,7 @@ import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 
+import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -28,6 +30,8 @@ public class MotorSystem implements Subsystem {
     protected final TalonFX[] motors;
     protected final double voltageMax;
     protected final double deadband;
+
+    protected final StatusSignal<Angle> positionSignal;
 
     protected final VoltageOut cachedVout = new VoltageOut(0);
     protected final StaticBrake cachedBrake = new StaticBrake();
@@ -56,6 +60,12 @@ public class MotorSystem implements Subsystem {
 
         for (int i = 1; i < motors.length; i++)
             motors[i].setControl(new StrictFollower(ids[0]));
+
+            positionSignal = motors[0].getPosition();
+    }
+
+    public double position() {
+        return positionSignal.refresh().getValueAsDouble();
     }
 
     public Command runWith(DoubleSupplier rate) {
@@ -83,14 +93,7 @@ public class MotorSystem implements Subsystem {
     }
 
     public Command atPoint(double position) {
-        return new WaitUntilCommand(() -> Math.abs(motors[0].getPosition().getValueAsDouble() - position) < deadband);
-    }
-
-    public Command moveTo(double position) {
-        return startEnd(() -> {
-            double currentPosition = motors[0].getPosition().getValueAsDouble();
-            motors[0].setControl(cachedVout.withOutput(Math.copySign(voltageMax, position - currentPosition)));
-        }, () -> {}).raceWith(atPoint(position));
+        return new WaitUntilCommand(() -> Math.abs(positionSignal.refresh().getValueAsDouble() - position) < deadband);
     }
 
     public Command characterise() {
@@ -101,7 +104,7 @@ public class MotorSystem implements Subsystem {
                     for (var motor : motors)
                         l.motor(motor.getDescription())
                                 .voltage(Voltage.ofBaseUnits(motor.getTorqueCurrent().getValueAsDouble(), Volts))
-                                .angularPosition(motor.getPosition().getValue())
+                                .angularPosition(positionSignal.refresh().getValue())
                                 .angularVelocity(motor.getVelocity().getValue());
                 }, this));
 

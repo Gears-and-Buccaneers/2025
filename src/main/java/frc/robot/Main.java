@@ -14,6 +14,7 @@ import com.pathplanner.lib.auto.NamedCommands;
 
 import static edu.wpi.first.units.Units.*;
 
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -29,6 +30,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
+import frc.robot.util.RateLimiter;
 import frc.robot.subsystems.AprilTags;
 import frc.robot.subsystems.LEDs;
 import frc.robot.subsystems.LimitMotorSystem;
@@ -113,8 +115,8 @@ public class Main extends TimedRobot {
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Autonomous path", autoChooser);
 
-    SlewRateLimiter xRate = new SlewRateLimiter(5.0);
-    SlewRateLimiter yRate = new SlewRateLimiter(5.0);
+    RateLimiter xRate = new RateLimiter();
+    RateLimiter yRate = new RateLimiter();
     SlewRateLimiter rRate = new SlewRateLimiter(15.0);
 
     NamedCommands.registerCommand("Elevator To Low", elevator.goTo(0.0));
@@ -129,13 +131,15 @@ public class Main extends TimedRobot {
     // and Y is defined as to the left according to WPILib convention.
     drivetrain.setDefaultCommand(
         // Drivetrain will execute this command periodically
-        drivetrain.applyRequest(() ->
-        // Drive forward with negative Y (forward)
-        drive.withVelocityX(xRate.calculate(-driver.getLeftY() * MaxSpeed))
-            // Drive left with negative X (left)
-            .withVelocityY(yRate.calculate(-driver.getLeftX() * MaxSpeed))
-            // Drive counterclockwise with negative X (left)
-            .withRotationalRate(rRate.calculate(-driver.getRightX() * MaxAngularRate))));
+        drivetrain.applyRequest(() -> {
+          double limit = MathUtil.clamp(5.0 - 0.1 * elevator.position(), 1.0, 5.0);
+
+          drive.VelocityX = xRate.calculate(-driver.getLeftY() * MaxSpeed, drive.VelocityX, limit);
+          drive.VelocityY = yRate.calculate(-driver.getLeftX() * MaxSpeed, drive.VelocityY, limit);
+          drive.RotationalRate = rRate.calculate(-driver.getRightX() * MaxAngularRate);
+
+          return drive;
+        }));
 
     // Brake mode.
     driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
@@ -148,7 +152,8 @@ public class Main extends TimedRobot {
     // Snap to the nearest point-of-interest while holding POV buttons.
     driver.povUp().whileTrue(drivetrain.snapTo(Locations.cage));
     driver.povLeft().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft)));
-    driver.povRight().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
+    driver.povRight()
+        .whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
     driver.povDown().whileTrue(drivetrain.snapTo(Locations.station));
 
     // Switch to coast-mode once we're within deadband of the zero position.
@@ -163,7 +168,7 @@ public class Main extends TimedRobot {
     // Control the coral receptacle with the right triggle & bumper.
     operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
     operator.rightBumper().whileTrue(coral.runAt(-1.0));
-    
+
     // Control the algae receptacle with the right triggle & bumper.
     operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
     operator.leftBumper().whileTrue(algae.runAt(-1.0));
