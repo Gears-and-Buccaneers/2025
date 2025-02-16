@@ -62,13 +62,13 @@ public class Main extends TimedRobot {
     // c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
     // c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
 
-    c.Slot0.kP = 30;
-    c.Slot0.kD = 8;
-    c.Slot0.kS = 5;
-    c.Slot0.kG = 5;
+    c.Slot0.kP = 32;
+    c.Slot0.kD = 2;
+    c.Slot0.kS = 4;
+    c.Slot0.kG = 10;
 
     c.MotionMagic.MotionMagicCruiseVelocity = 9999;
-    c.MotionMagic.MotionMagicAcceleration = 250;
+    c.MotionMagic.MotionMagicAcceleration = 100;
   }, 1.0, 0.3, 25);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.25;
