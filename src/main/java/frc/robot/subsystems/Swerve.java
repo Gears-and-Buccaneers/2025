@@ -72,6 +72,9 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private final ProfiledPIDController rPID = new ProfiledPIDController(rotation.kP, rotation.kI, rotation.kD,
             rotationConstraints);
 
+    private double translationDeadband = 0.02;
+    private double rotationDeadband = Math.toRadians(5);
+
     private final SwerveRequest.FieldCentric fieldCentric = new SwerveRequest.FieldCentric();
 
     /**
@@ -205,27 +208,48 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
     /** Returns a Command which drives directly to the specified pose. */
     public Command driveTo(Pose2d destination, Pose2d velocity) {
-        return startRun(() -> {
-            var state = getState();
+        return new Command() {
+            @Override
+            public void initialize() {
+                var state = getState();
 
-            xPID.reset(state.Pose.getX(), state.Speeds.vxMetersPerSecond);
-            yPID.reset(state.Pose.getY(), state.Speeds.vyMetersPerSecond);
-            rPID.reset(MathUtil.angleModulus(state.Pose.getRotation().getRadians()), state.Speeds.omegaRadiansPerSecond);
+                xPID.reset(state.Pose.getX(), state.Speeds.vxMetersPerSecond);
+                yPID.reset(state.Pose.getY(), state.Speeds.vyMetersPerSecond);
+                rPID.reset(MathUtil.angleModulus(state.Pose.getRotation().getRadians()),
+                        state.Speeds.omegaRadiansPerSecond);
 
-            xPID.setGoal(new TrapezoidProfile.State(destination.getX(), velocity.getX()));
-            yPID.setGoal(new TrapezoidProfile.State(destination.getY(), velocity.getY()));
-            rPID.setGoal(new TrapezoidProfile.State(
-                    MathUtil.angleModulus(destination.getRotation().getRadians()),
-                    MathUtil.angleModulus(velocity.getRotation().getRadians())));
-        }, () -> {
-            var pose = getState().Pose;
+                xPID.setGoal(new TrapezoidProfile.State(destination.getX(), velocity.getX()));
+                yPID.setGoal(new TrapezoidProfile.State(destination.getY(), velocity.getY()));
+                rPID.setGoal(new TrapezoidProfile.State(
+                        MathUtil.angleModulus(destination.getRotation().getRadians()),
+                        MathUtil.angleModulus(velocity.getRotation().getRadians())));
+            }
 
-            var x = xPID.calculate(pose.getX());
-            var y = yPID.calculate(pose.getY());
-            var r = rPID.calculate(MathUtil.angleModulus(pose.getRotation().getRadians()));
+            @Override
+            public void execute() {
+                var pose = getState().Pose;
 
-            setControl(fieldCentric.withVelocityX(x).withVelocityY(y).withRotationalRate(r));
-        });
+                if (Math.abs(pose.getX() - destination.getX()) > translationDeadband)
+                    fieldCentric.VelocityX = xPID.calculate(pose.getX());
+                if (Math.abs(pose.getY() - destination.getY()) > translationDeadband)
+                    fieldCentric.VelocityY = yPID.calculate(pose.getY());
+                if (Math.abs(
+                        pose.getRotation().getRadians() - destination.getRotation().getRadians()) > rotationDeadband)
+                    fieldCentric.RotationalRate = xPID.calculate(pose.getRotation().getRadians());
+
+                setControl(fieldCentric);
+            }
+
+            @Override
+            public boolean isFinished() {
+                var pose = getState().Pose;
+
+                return Math.abs(pose.getX() - destination.getX()) <= translationDeadband
+                        && Math.abs(pose.getY() - destination.getY()) <= translationDeadband
+                        && Math.abs(pose.getRotation().getRadians()
+                                - destination.getRotation().getRadians()) <= rotationDeadband;
+            }
+        };
     }
 
     /**
