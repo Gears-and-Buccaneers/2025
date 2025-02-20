@@ -85,7 +85,7 @@ public class Main extends TimedRobot {
 
     c.Slot0.GravityType = GravityTypeValue.Arm_Cosine;
     c.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
-  }, 1.0, 0.5, 11);
+  }, 0.01, 0.5, 11);
   public final MotorSystem coral = new MotorSystem((i, c) -> {
     c.HardwareLimitSwitch.ReverseLimitAutosetPositionEnable = true;
   }, 1.0, 0.15, 10);
@@ -150,20 +150,37 @@ public class Main extends TimedRobot {
     driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
     // Snap to the nearest point-of-interest while holding POV buttons.
-    driver.povUp().whileTrue(drivetrain.snapTo(Locations.cage));
-    driver.povLeft().whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft)));
+    driver.povLeft().whileTrue(
+        wrist.moveTo(0.08).andThen(wrist.brake().alongWith(
+            drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft))
+                .andThen(coral.runAt(-1.0)))));
     driver.povRight()
         .whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
-    driver.povDown().whileTrue(drivetrain.snapTo(Locations.station));
+    driver.povDown().whileTrue(drivetrain.snapTo(Locations.station)
+        .alongWith(wrist.moveTo(0.114).andThen(wrist.brake().alongWith(coral.runAt(1.0)))));
 
     // Switch to coast-mode once we're within deadband of the zero position.
     elevator.setDefaultCommand(elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()));
-    // Manual, voltage-based override for the elevator.
-    operator.povDown().whileTrue(elevator.runWith(() -> -operator.getRightY()));
 
-    wrist.setDefaultCommand(wrist.runWith(() -> -operator.getLeftY()));
+    wrist.setPosition(0.1577);
+    wrist.setDefaultCommand(wrist.moveTo(0.1577).andThen(wrist.brake()));
+
+    driver.b().whileTrue(elevator.goTo(58.0).alongWith(
+        wrist.moveTo(-0.0759).andThen(wrist.brake()
+            .alongWith(elevator.atPoint(58.0).andThen(drivetrain.snapTo(Locations.reef), coral.runAt(-1.0))))));
+
+    driver.y().whileTrue(elevator.goTo(172.5).alongWith(
+        wrist.moveTo(-0.0759).andThen(wrist.brake()
+            .alongWith(elevator.atPoint(172.5).andThen(drivetrain.snapTo(Locations.reef), coral.runAt(-1.0))))));
+
+    driver.a().whileTrue(
+        wrist.moveTo(0.08).andThen(wrist.brake().alongWith(drivetrain.snapTo(Locations.reef), coral.runAt(-1.0))));
+
     coral.setDefaultCommand(coral.brake());
     algae.setDefaultCommand(algae.brake());
+
+    operator.a().whileTrue(wrist.runWith(() -> -operator.getLeftY()));
+    operator.b().whileTrue(elevator.runWith(() -> -operator.getRightY()));
 
     // Control the coral receptacle with the right triggle & bumper.
     operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
