@@ -61,7 +61,7 @@ public class MotorSystem implements Subsystem {
         for (int i = 1; i < motors.length; i++)
             motors[i].setControl(new StrictFollower(ids[0]));
 
-            positionSignal = motors[0].getPosition();
+        positionSignal = motors[0].getPosition();
     }
 
     public double position() {
@@ -93,7 +93,7 @@ public class MotorSystem implements Subsystem {
     }
 
     public Command atPoint(double position) {
-        return new WaitUntilCommand(() -> Math.abs(positionSignal.refresh().getValueAsDouble() - position) < deadband);
+        return new WaitUntilCommand(() -> Math.abs(position() - position) < deadband);
     }
 
     public Command characterise() {
