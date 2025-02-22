@@ -19,6 +19,8 @@ import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.networktables.DoublePublisher;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -43,7 +45,7 @@ public class Main extends TimedRobot {
 
   /* Setting up bindings for necessary control of the swerve drive platform */
   private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-      .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1); // Add a 10% deadband
+      .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05); // Add a 10% deadband
   private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
 
   private final Telemetry logger = new Telemetry();
@@ -132,7 +134,7 @@ public class Main extends TimedRobot {
     drivetrain.setDefaultCommand(
         // Drivetrain will execute this command periodically
         drivetrain.applyRequest(() -> {
-          double limit = MathUtil.clamp(5.0 - 0.1 * elevator.position(), 1.0, 5.0);
+          double limit = MathUtil.clamp(5.0 - 0.1 * elevator.position(), 3.0, 5.0);
 
           drive.VelocityX = xRate.calculate(-driver.getLeftY() * MaxSpeed, drive.VelocityX, limit);
           drive.VelocityY = yRate.calculate(-driver.getLeftX() * MaxSpeed, drive.VelocityY, limit);
@@ -239,8 +241,15 @@ public class Main extends TimedRobot {
     }
   }
 
+  NetworkTableInstance nt =  NetworkTableInstance.getDefault();
+
+  DoublePublisher elevatorHeight = nt.getDoubleTopic("Elevator Position").publish();
+  DoublePublisher wristHeight = nt.getDoubleTopic("Wrist Position").publish();
+
   @Override
   public void teleopPeriodic() {
+    elevatorHeight.set(elevator.position());
+    wristHeight.set(wrist.position());
   }
 
   @Override
