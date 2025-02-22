@@ -29,7 +29,7 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 public class MotorSystem implements Subsystem {
     protected final TalonFX[] motors;
     protected final double voltageMax;
-    protected final double deadband;
+    public final double deadband;
 
     protected final StatusSignal<Angle> positionSignal;
 
@@ -58,8 +58,10 @@ public class MotorSystem implements Subsystem {
             motors[i].getConfigurator().apply(config);
         }
 
+        StrictFollower follow = new StrictFollower(ids[0]);
+
         for (int i = 1; i < motors.length; i++)
-            motors[i].setControl(new StrictFollower(ids[0]));
+            motors[i].setControl(follow);
 
         positionSignal = motors[0].getPosition();
     }
@@ -68,12 +70,36 @@ public class MotorSystem implements Subsystem {
         return positionSignal.refresh().getValueAsDouble();
     }
 
+    public void setPosition(double position) {
+        motors[0].setPosition(position);
+    }
+
+    public void setRate(double rate) {
+        motors[0].setControl(cachedVout.withOutput(rate * voltageMax));
+    }
+
+
+    public void setGoto(double position) {
+        motors[0].setControl(cachedPosition.withPosition(position));
+    }
+
+    public Command moveTo(double target) {
+        return defer(() -> {
+            double start = position();
+
+            if (start > target)
+                return runAt(-1.0).until(() -> position() <= target + deadband);
+            else
+                return runAt(1.0).until(() -> position() >= target - deadband);
+        });
+    }
+
     public Command runWith(DoubleSupplier rate) {
-        return run(() -> motors[0].setControl(cachedVout.withOutput(rate.getAsDouble() * voltageMax)));
+        return run(() -> setRate(rate.getAsDouble()));
     }
 
     public Command runAt(double rate) {
-        return startEnd(() -> motors[0].setControl(cachedVout.withOutput(rate * voltageMax)), () -> {
+        return startEnd(() -> setRate(rate), () -> {
         });
     }
 
