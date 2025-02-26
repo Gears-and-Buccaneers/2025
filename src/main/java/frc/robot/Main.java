@@ -45,7 +45,8 @@ public class Main extends TimedRobot {
 
   /* Setting up bindings for necessary control of the swerve drive platform */
   private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-      .withDeadband(MaxSpeed * 0.05).withRotationalDeadband(MaxAngularRate * 0.05); // Add a 10% deadband
+      .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1); // Add a 10% deadband
+  private final SwerveRequest.RobotCentric robotCentric = new SwerveRequest.RobotCentric();
   private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
 
   private final Telemetry logger = new Telemetry();
@@ -141,6 +142,20 @@ public class Main extends TimedRobot {
           drive.RotationalRate = rRate.calculate(-driver.getRightX() * MaxAngularRate);
 
           return drive;
+        }));
+
+    // Lock directions while the right stick is being held.
+    driver.rightStick().whileTrue(
+        drivetrain.applyRequest(() -> {
+          double xReq = -driver.getLeftY() * MaxSpeed;
+          double yReq = -driver.getLeftX() * MaxSpeed;
+
+          if (Math.abs(xReq) > Math.abs(yReq))
+            yReq = 0;
+          else
+            yReq = 0;
+
+          return robotCentric.withVelocityX(xReq).withVelocityY(yReq);
         }));
 
     // Brake mode.
@@ -241,7 +256,7 @@ public class Main extends TimedRobot {
     }
   }
 
-  NetworkTableInstance nt =  NetworkTableInstance.getDefault();
+  NetworkTableInstance nt = NetworkTableInstance.getDefault();
 
   DoublePublisher elevatorHeight = nt.getDoubleTopic("Elevator Position").publish();
   DoublePublisher wristHeight = nt.getDoubleTopic("Wrist Position").publish();
