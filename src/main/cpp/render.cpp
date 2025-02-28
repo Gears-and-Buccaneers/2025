@@ -1,8 +1,8 @@
-#include <iostream>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 #include <SDL3/SDL.h>
 
@@ -68,8 +68,8 @@ struct Camera {
 
 	void point(float x, float y, Uint32 color) {
 		SDL_FRect rect = {
-			.x = sx(x) - 5.0f,
-			.y = sy(y) - 5.0f,
+			.x = sx(y) - 5.0f,
+			.y = sy(x) - 5.0f,
 			.w = 10.0f,
 			.h = 10.0f,
 		};
@@ -80,7 +80,7 @@ struct Camera {
 
 	void line(float x0, float y0, float x1, float y1, Uint32 color) {
 		set_color(color);
-		SDL_RenderLine(rend, sx(x0), sy(y0), sx(x1), sy(y1));
+		SDL_RenderLine(rend, sx(y0), sy(x0), sx(y1), sy(x1));
 	}
 };
 
@@ -114,13 +114,28 @@ int main() {
 		return 1;
 	}
 
-	// start scan...
 	drv->setMotorSpeed();
-	drv->startScan(0, 1);
+
+	LidarScanMode selectedMode;
+	std::vector<LidarScanMode> modes = {};
+
+	if (SL_IS_OK(drv->getAllSupportedScanModes(modes))) {
+		int best;
+		float bestRate = INFINITY;
+
+		for (const LidarScanMode& m : modes)
+			if (m.us_per_sample < bestRate)
+				best = m.id;
+
+		drv->startScanExpress(0, best, 0, &selectedMode);
+	} else {
+		drv->startScan(0, 1, 0, &selectedMode);
+	}
+
+	printf("scanning with mode %s: %fus per sample, %fm max distance\n", selectedMode.scan_mode, selectedMode.us_per_sample, selectedMode.max_distance);
 
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
-		std::cout << "SDL could not initialize! SDL_Error: " << SDL_GetError()
-				  << std::endl;
+		printf("Could not initialise SDL: %s", SDL_GetError());
 		return 1;
 	}
 
@@ -143,8 +158,6 @@ int main() {
 	DebugPoint pointBuf[8192];
 
 	DebugBuffer dbg = {.points = pointBuf};
-
-	size_t inBuf = 0;
 
 	Uint64 lastTick = 0;
 
@@ -172,13 +185,9 @@ int main() {
 
 			drv->ascendScanData(nodes, count);
 
-			inBuf = count;
-
 			if (find_line(WIDTH, nodes + count - 1, nodes, &res, &dbg) == -1) {
-				printf("WARN: line fitting failed\n");
-				inBuf = 0;
-				exit(1);
-				break;
+				printf("ERROR: line fitting failed\n");
+				return 0;
 			};
 
 			redraw = 1;
@@ -226,21 +235,10 @@ int main() {
 		SDL_SetRenderDrawColor(cam.rend, 0x18, 0x18, 0x18, 255);
 		SDL_RenderClear(cam.rend);
 
-		for (size_t i = 0; i < inBuf; i++) {
-			sl_lidar_response_measurement_node_hq_t n = nodes[i];
-
-			double a = (n.angle_z_q14 / 16384.0) * M_PI_2;
-			double d = (n.dist_mm_q2 / 4.0) / 1000.0;
-
-			if (n.quality == 0)
-				continue;
-
-			cam.line(0, 0, sin(a) * d, cos(a) * d, 0xFF000080);
-		}
-
 		for (size_t i = 0; i < dbg.nPoints; i++) {
 			DebugPoint p = dbg.points[i];
 			cam.point(p.x, p.y, p.used ? 0x00FF00FF : 0xAAAAAAFF);
+			cam.line(0, 0, p.x, p.y, 0xFF000080);
 		}
 
 		float x0 = -10.0;
@@ -253,6 +251,8 @@ int main() {
 
 		cam.line(0, 0, res.cx, res.cy, 0xFFFF00FF);
 		cam.line(0, 0, res.rx * 5.0, res.ry * 5.0, 0xFFFF00FF);
+
+		cam.line(0, 0, 1, 0, 0xFFFFFFFF);
 
 		SDL_RenderPresent(cam.rend);
 	}

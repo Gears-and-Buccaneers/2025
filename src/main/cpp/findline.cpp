@@ -1,13 +1,12 @@
 #include "findline.h"
 #include <math.h>
 
-// Sums points `a` and `b` and writes the result to `p`.
-void point_add(Point* a, Point* b, Point* p) {
-	p->x   = a->x   + b->x;
-	p->y   = a->y   + b->y;
-	p->x_x = a->x_x + b->x_x;
-	p->y_y = a->y_y + b->y_y;
-	p->x_y = a->x_y + b->x_y;
+// Adds point `b` to point `a`.
+void point_add(Point* a, Point* b) {
+	a->x   += b->x;
+	a->y   += b->y;
+	a->x_x += b->x_x;
+	a->x_y += b->x_y;
 }
 
 // Finds the square distance between points.
@@ -25,11 +24,10 @@ int measure_to_point(const sl_lidar_response_measurement_node_hq_t* m, Point* p)
 	double a = (m->angle_z_q14 / 16384.0) * M_PI_2;
 	double d = (m->dist_mm_q2 / 4.0) / 1000.0;
 
-	p->x = sin(a) * d;
-	p->y = cos(a) * d;
+	p->x = cos(a) * d;
+	p->y = sin(a) * d;
 
 	p->x_x = p->x * p->x;
-	p->y_y = p->y * p->y;
 	p->x_y = p->x * p->y;
 
 	return 0;
@@ -74,8 +72,6 @@ int find_line(
 	Point cl, cr;
 	// The next points on the left and right side.
 	Point nl, nr;
-	// Buffers for the parameter sums for the left and right side.
-	Point sl, sr;
 
 	// Pop the first points from the left and right sides.
 	do if (left == right) return -1; while (measure_to_point( left--, &cl));
@@ -87,7 +83,8 @@ int find_line(
 	#endif
 
 	// Initialise the sum buffer with these two points.
-	point_add(&cl, &cr, &sum);
+	sum = cl;
+	point_add(&sum, &cr);
 	int n = 2;
 
 	// Initialise the left and right starting points.
@@ -95,15 +92,11 @@ int find_line(
 	do if (left == right) return -1; while (measure_to_point(right++, &nr));
 
 	do {
-		// Add the left and right points to the current sum.
-		point_add(&sum, &nl, &sl);
-		point_add(&sum, &nr, &sr);
 		// Increment the set size.
 		n += 1;
-
 		// Accept the point with the lower error to the regression line.
 		if (err(&nl, &line) < err(&nr, &line)) {
-			sum = sl;
+			point_add(&sum, &nl);
 			cl = nl;
 
 			do if (left == right) return -1; while (measure_to_point( left--, &nl));
@@ -112,7 +105,7 @@ int find_line(
 			dbg->points[n - 1] = { .x = cl.x, .y = cl.y, .used = 1 };
 			#endif
 		} else {
-			sum = sr;
+			point_add(&sum, &nr);
 			cr = nr;
 
 			do if (left == right) return -1; while (measure_to_point(right++, &nr));

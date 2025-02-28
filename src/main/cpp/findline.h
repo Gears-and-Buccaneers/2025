@@ -1,6 +1,7 @@
 #ifndef FINDLINE_H
 #define FINDLINE_H
 
+#include <stddef.h>
 #include "sl_lidar_cmd.h"
 
 typedef struct {
