@@ -1,7 +1,5 @@
-#include <stdio.h>
-#include <math.h>
-
 #include "findline.h"
+#include <math.h>
 
 // Sums points `a` and `b` and writes the result to `p`.
 void point_add(Point* a, Point* b, Point* p) {
@@ -88,8 +86,6 @@ int find_line(
 	dbg->points[1] = { .x = cr.x, .y = cr.y, .used = 1 };
 	#endif
 
-	// printf("starting points: (%f, %f) and (%f, %f)\n", cl.x, cl.y, cr.x, cr.y);
-
 	// Initialise the sum buffer with these two points.
 	point_add(&cl, &cr, &sum);
 	int n = 2;
@@ -99,15 +95,11 @@ int find_line(
 	do if (left == right) return -1; while (measure_to_point(right++, &nr));
 
 	do {
-		// printf("sum: x=%f y=%f x^2=%f xy=%f y^2=%f\n", sum.x, sum.y, sum.x_x, sum.x_y, sum.y_y);
-		// printf("next points: (%f, %f) and (%f, %f)\n\n", nl.x, nl.y, nr.x, nr.y);
-
 		// Add the left and right points to the current sum.
 		point_add(&sum, &nl, &sl);
 		point_add(&sum, &nr, &sr);
 		// Increment the set size.
 		n += 1;
-		// printf("r-vals: %f and %f\n", rl, rr);
 
 		// Accept the point with the lower error to the regression line.
 		if (err(&nl, &line) < err(&nr, &line)) {
