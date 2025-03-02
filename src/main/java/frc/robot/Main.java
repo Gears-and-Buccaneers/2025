@@ -16,11 +16,13 @@ import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.networktables.DoublePublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.TimedRobot;
@@ -35,6 +37,7 @@ import frc.robot.subsystems.Swerve;
 import frc.robot.util.RateLimiter;
 import frc.robot.subsystems.AprilTags;
 import frc.robot.subsystems.LEDs;
+import frc.robot.subsystems.Lidar;
 import frc.robot.subsystems.LimitMotorSystem;
 import frc.robot.subsystems.MotorSystem;
 
@@ -103,6 +106,8 @@ public class Main extends TimedRobot {
       new Rotation3d(Degrees.zero(), Degrees.of(-30), Degrees.zero())),
       drivetrain);
 
+  public final Lidar lidar = new Lidar(drivetrain, null, 0);
+
   public final LEDs leds = new LEDs(1);
 
   private Command m_autonomousCommand;
@@ -111,7 +116,7 @@ public class Main extends TimedRobot {
   public static void main(String... args) {
     RobotBase.startRobot(Main::new);
   }
-
+  
   public Main() {
     DriverStation.silenceJoystickConnectionWarning(true);
 
@@ -150,13 +155,21 @@ public class Main extends TimedRobot {
           double xReq = -driver.getLeftY() * MaxSpeed;
           double yReq = -driver.getLeftX() * MaxSpeed;
 
-          if (Math.abs(xReq) > Math.abs(yReq))
-            yReq = 0;
-          else
-            yReq = 0;
+          // if (Math.abs(xReq) > Math.abs(yReq))
+          yReq = 0;
+          // else
+          // xReq = 0;
 
           return robotCentric.withVelocityX(xReq).withVelocityY(yReq);
         }));
+
+    StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault().getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
+
+    lidar.setDefaultCommand(lidar.new FeedPose(xform -> {
+        // Get the field-relative pose of the center point of the line.
+        Pose2d pose = drivetrain.getState().Pose.transformBy(xform);
+        targetPose.set(pose);
+    }));
 
     // Brake mode.
     driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
@@ -222,6 +235,7 @@ public class Main extends TimedRobot {
 
   @Override
   public void disabledInit() {
+    lidar.stopMotor();
   }
 
   @Override
@@ -254,6 +268,8 @@ public class Main extends TimedRobot {
     if (m_autonomousCommand != null) {
       m_autonomousCommand.cancel();
     }
+
+    lidar.startMotor();
   }
 
   NetworkTableInstance nt = NetworkTableInstance.getDefault();
@@ -269,11 +285,13 @@ public class Main extends TimedRobot {
 
   @Override
   public void teleopExit() {
+    lidar.stopMotor();
   }
 
   @Override
   public void testInit() {
     CommandScheduler.getInstance().cancelAll();
+    drivetrain.applyRequest(() -> robotCentric.withVelocityX(1).withRotationalRate(1)).schedule();
   }
 
   @Override
