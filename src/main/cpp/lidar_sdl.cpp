@@ -7,7 +7,7 @@
 #include <SDL3/SDL.h>
 
 #ifndef FINDLINE_DEBUG
-#error FINDLINE_DEBUG must be defined!
+#define FINDLINE_DEBUG
 #endif
 
 #include "findline.h"
@@ -15,7 +15,7 @@
 #include "sl_lidar.h"
 #include "sl_lidar_driver.h"
 
-#define WIDTH 0.26
+#define WIDTH 0.94
 
 #define ARRAY_LEN(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 
@@ -62,7 +62,7 @@ struct Camera {
 							   (c >> 8) & 0xFF, c & 0xFF);
 	}
 
-	float sx(float x) { return w / 2.0f + x * zoom; }
+	float sx(float x) { return w / 2.0f - x * zoom; }
 
 	float sy(float y) { return h / 2.0f - y * zoom; }
 
@@ -114,7 +114,21 @@ int main() {
 		return 1;
 	}
 
-	drv->setMotorSpeed();
+	MotorCtrlSupport motorSupport;
+
+	if (SL_IS_OK(drv->checkMotorCtrlSupport(motorSupport))) {
+		printf("got support: %i\n", motorSupport);
+	}
+
+	LidarMotorInfo motor;
+	sl_u16 motorSpeed = DEFAULT_MOTOR_SPEED;
+
+	if (SL_IS_OK(drv->getMotorInfo(motor))) {
+		printf("motor: min=%i desired=%i max=%i ty=%i\n", motor.min_speed, motor.desired_speed, motor.max_speed, motor.motorCtrlSupport);
+		motorSpeed = 1;
+	}
+
+	drv->setMotorSpeed(65534);
 
 	LidarScanMode selectedMode;
 	std::vector<LidarScanMode> modes = {};
@@ -166,8 +180,8 @@ int main() {
 		Uint64 deadline = lastTick + 20;
 		Uint64 cur = SDL_GetTicks();
 
-		if (cur < deadline)
-			SDL_WaitEventTimeout(NULL, deadline - cur);
+		// if (cur < deadline)
+			SDL_WaitEventTimeout(NULL, 20);
 
 		lastTick = cur;
 
@@ -180,8 +194,13 @@ int main() {
 		switch (drv->grabScanDataHq(nodes, count, 0)) {
 		case SL_RESULT_OK:
 		case SL_RESULT_ALREADY_DONE: {
+			float freq = 0.0;
+			drv->getFrequency(selectedMode, nodes, count, freq);
+
+			printf("frequency: %f\n", freq);
+
 			for (size_t i = 0; i < count; i++)
-				nodes[i].angle_z_q14 += 1 << 15;
+				nodes[i].angle_z_q14 = (1 << 15) - nodes[i].angle_z_q14;
 
 			drv->ascendScanData(nodes, count);
 
@@ -189,6 +208,8 @@ int main() {
 				printf("ERROR: line fitting failed\n");
 				return 0;
 			};
+
+			printf("cx=%f cy=%f rx=%f ry=%f\n", res.cx, res.cy, res.rx, res.ry);
 
 			redraw = 1;
 		}
@@ -241,18 +262,16 @@ int main() {
 			cam.line(0, 0, p.x, p.y, 0xFF000080);
 		}
 
-		float x0 = -10.0;
-		float x1 = 10.0;
+		float y0 = -10.0;
+		float y1 = 10.0;
 
-		float y0 = dbg.m * x0 + dbg.b;
-		float y1 = dbg.m * x1 + dbg.b;
+		float x0 = dbg.m * y0 + dbg.b;
+		float x1 = dbg.m * y1 + dbg.b;
 
 		cam.line(x0, y0, x1, y1, 0x0000FFFF);
 
 		cam.line(0, 0, res.cx, res.cy, 0xFFFF00FF);
 		cam.line(0, 0, res.rx * 5.0, res.ry * 5.0, 0xFFFF00FF);
-
-		cam.line(0, 0, 1, 0, 0xFFFFFFFF);
 
 		SDL_RenderPresent(cam.rend);
 	}

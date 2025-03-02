@@ -1,12 +1,21 @@
 #include "findline.h"
 #include <math.h>
 
+typedef struct {
+	// The rectangular coordinates of the point.
+	double x, y;
+	// The squares of the coordinates.
+	double y_y;
+	// The product of the coordinates.
+	double x_y;
+} Point;
+
 // Adds point `b` to point `a`.
 void point_add(Point* a, Point* b) {
 	a->x   += b->x;
 	a->y   += b->y;
-	a->x_x += b->x_x;
 	a->x_y += b->x_y;
+	a->y_y += b->y_y;
 }
 
 // Finds the square distance between points.
@@ -27,8 +36,8 @@ int measure_to_point(const sl_lidar_response_measurement_node_hq_t* m, Point* p)
 	p->x = cos(a) * d;
 	p->y = sin(a) * d;
 
-	p->x_x = p->x * p->x;
 	p->x_y = p->x * p->y;
+	p->y_y = p->y * p->y;
 
 	return 0;
 }
@@ -38,19 +47,19 @@ typedef struct {
 	double m, b;
 } LsrBuf;
 
-// Perform least-squares regression on a parameter sum, and find the R^2 value.
+// Perform least-squares regression on a parameter sum.
 void lsr(Point* s, int n, LsrBuf* b) {
-	b->m = (n * s->x_y - s->x * s->y) / (n * s->x_x - s->x * s->x);
-	b->b = (s->y - b->m * s->x) / n;
+	b->m = (n * s->x_y - s->x * s->y) / (n * s->y_y - s->y * s->y);
+	b->b = (s->x - b->m * s->y) / n;
 }
 
-double eval(LsrBuf* line, double x) {
-	return line->m * x + line->b;
+double eval(LsrBuf* line, double y) {
+	return line->m * y + line->b;
 }
 
 // Find the error between a point an a regression line.
 double err(Point* p, LsrBuf* line) {
-	return fabs(p->y - eval(line, p->x));
+	return fabs(p->x - eval(line, p->y));
 }
 
 // Derives parameters for the best-fitting line directly in front of the sensor.
@@ -119,12 +128,12 @@ int find_line(
 	} while (left != right && (point_dist_sq(&nl, &cr) < width * width || point_dist_sq(&cl, &nr) < width * width));
 
 	// Find the center x and y coordinates.
-	res->cx = (cl.x + cr.x) / 2;
-	res->cy = eval(&line, res->cx);
+	res->cy = (cl.y + cr.y) / 2;
+	res->cx = eval(&line, res->cy);
 
 	// Find the vector of the line.
-	res->rx = 1.0 / hypot(line.m, 1.0);
-	res->ry = line.m * res->rx;
+	res->rx = 1.0 / sqrt(line.m * line.m + 1);
+	res->ry = -line.m * res->rx;
 
 	#ifdef FINDLINE_DEBUG
 	while (left != right) {

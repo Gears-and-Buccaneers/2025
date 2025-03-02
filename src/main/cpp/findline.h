@@ -5,15 +5,6 @@
 #include "sl_lidar_cmd.h"
 
 typedef struct {
-	// The rectangular coordinates of the point.
-	double x, y;
-	// The squares of the coordinates.
-	double x_x, y_y;
-	// The product of the coordinates.
-	double x_y;
-} Point;
-
-typedef struct {
 	// The coordinates of the centerpoint of the line.
 	double cx, cy;
 	// The normalised vector of the relative line direction.
