@@ -25,8 +25,8 @@ public class TunerConstants {
     // the
     // output type specified by SwerveModuleConstants.SteerMotorClosedLoopOutput
     private static final Slot0Configs steerGains = new Slot0Configs()
-            .withKP(1600).withKI(0).withKD(57)
-            .withKS(1).withKV(0).withKA(0)
+            .withKP(3000).withKI(0).withKD(78)
+            .withKS(0.1).withKV(0).withKA(0)
             .withStaticFeedforwardSign(StaticFeedforwardSignValue.UseClosedLoopSign);
     // When using closed-loop control, the drive motor uses the control
     // output type specified by SwerveModuleConstants.DriveMotorClosedLoopOutput
@@ -72,7 +72,7 @@ public class TunerConstants {
                             // Swerve azimuth does not require much torque output, so we can set a
                             // relatively low
                             // stator current limit to help avoid brownouts without impacting performance.
-                            .withStatorCurrentLimit(Amps.of(40))
+                            .withStatorCurrentLimit(Amps.of(60))
                             .withStatorCurrentLimitEnable(true));
     private static final CANcoderConfiguration encoderInitialConfigs = new CANcoderConfiguration();
     // Configs for the Pigeon 2; leave this null to skip applying Pigeon 2 configs
