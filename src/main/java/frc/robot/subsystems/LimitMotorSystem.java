@@ -21,7 +21,7 @@ public class LimitMotorSystem extends MotorSystem {
         super.periodic();
 
         // Each tick, check whether the limit switch has been hit.
-        if (!limitSwitch.get())
+        if (limitSwitch.get())
             for (TalonFX motor : motors)
                 motor.setPosition(0.0);
     }
