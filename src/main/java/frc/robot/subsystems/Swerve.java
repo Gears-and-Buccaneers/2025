@@ -1,10 +1,8 @@
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.*;
 
 import java.util.function.Supplier;
 
-import com.ctre.phoenix6.SignalLogger;
 import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
@@ -27,13 +25,11 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.Subsystem;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 /**
@@ -72,8 +68,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private final ProfiledPIDController rPID = new ProfiledPIDController(rotation.kP, rotation.kI, rotation.kD,
             rotationConstraints);
 
-    private double translationDeadband = 0.02;
-    private double rotationDeadband = Math.toRadians(5);
+    private double translationDeadband = 0;
+    private double rotationDeadband = Math.toRadians(0);
 
     private final SwerveRequest.FieldCentric fieldCentric = new SwerveRequest.FieldCentric();
 
@@ -169,6 +165,10 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private void configureAutoBuilder() {
         rPID.enableContinuousInput(-Math.PI, Math.PI);
 
+        SmartDashboard.putData("Drive/xPID", xPID);
+        SmartDashboard.putData("Drive/yPID", yPID);
+        SmartDashboard.putData("Drive/rPID", rPID);
+
         try {
             var config = RobotConfig.fromGUISettings();
             var applySpeeds = new SwerveRequest.ApplyRobotSpeeds();
@@ -241,13 +241,13 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             var pose = getState().Pose;
 
             // TODO: Velocity deadbanding
-            if (Math.abs(pose.getX() - destination.getX()) > translationDeadband)
+            if (Math.abs(pose.getX() - destination.getX()) >= translationDeadband)
                 fieldCentric.VelocityX = xPID.calculate(pose.getX());
-            if (Math.abs(pose.getY() - destination.getY()) > translationDeadband)
+            if (Math.abs(pose.getY() - destination.getY()) >= translationDeadband)
                 fieldCentric.VelocityY = yPID.calculate(pose.getY());
             if (Math.abs(
-                    pose.getRotation().getRadians() - destination.getRotation().getRadians()) > rotationDeadband)
-                fieldCentric.RotationalRate = xPID.calculate(pose.getRotation().getRadians());
+                    pose.getRotation().getRadians() - destination.getRotation().getRadians()) >= rotationDeadband)
+                fieldCentric.RotationalRate = rPID.calculate(pose.getRotation().getRadians());
 
             setControl(fieldCentric);
         }
@@ -294,86 +294,6 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
             return driveTo(dest, Pose2d.kZero);
         });
-    }
-
-    /** Runs SysId characterisations for all axes in all directions. */
-    public Command characterise() {
-        /* Swerve requests to apply during SysId characterization */
-        SwerveRequest.SysIdSwerveTranslation translation = new SwerveRequest.SysIdSwerveTranslation();
-        SwerveRequest.SysIdSwerveSteerGains steer = new SwerveRequest.SysIdSwerveSteerGains();
-        SwerveRequest.SysIdSwerveRotation rotation = new SwerveRequest.SysIdSwerveRotation();
-
-        SysIdRoutine[] routines = {
-                /*
-                 * SysId routine for characterizing translation. This is used to find PID gains
-                 * for the drive motors.
-                 */
-                // new SysIdRoutine(
-                //         new SysIdRoutine.Config(
-                //                 null, // Use default ramp rate (1 V/s)
-                //                 Volts.of(4), // Reduce dynamic step voltage to 4 V to prevent brownout
-                //                 Seconds.of(5), // Use default timeout (10 s)
-                //                 // Log state with SignalLogger class
-                //                 state -> SignalLogger.writeString("SysIdTranslation_State", state.toString())),
-                //         new SysIdRoutine.Mechanism(
-                //                 output -> setControl(translation.withVolts(output)),
-                //                 null,
-                //                 this)),
-
-                /*
-                 * SysId routine for characterizing steer. This is used to find PID gains for
-                 * the steer motors.
-                 */
-                new SysIdRoutine(
-                        new SysIdRoutine.Config(
-                                null, // Use default] ramp rate (1 V/s)
-                                Volts.of(7), // Use dynamic voltage of 7 V
-                                null, // Use default timeout (10 s)
-                                // Log state with SignalLogger class
-                                state -> SignalLogger.writeString("SysIdSteer_State", state.toString())),
-                        new SysIdRoutine.Mechanism(
-                                volts -> setControl(steer.withVolts(volts)),
-                                null,
-                                this)),
-
-                /*
-                 * SysId routine for characterizing rotation.
-                 * This is used to find PID gains for the FieldCentricFacingAngle
-                 * HeadingController.
-                 * See the documentation of SwerveRequest.SysIdSwerveRotation for info on
-                 * importing the log to SysId.
-                 */
-                // new SysIdRoutine(
-                //         new SysIdRoutine.Config(
-                //                 /* This is in radians per second², but SysId only supports "volts per second" */
-                //                 Volts.of(Math.PI / 6).per(Second),
-                //                 /* This is in radians per second, but SysId only supports "volts" */
-                //                 Volts.of(Math.PI),
-                //                 null, // Use default timeout (10 s)
-                //                 // Log state with SignalLogger class
-                //                 state -> SignalLogger.writeString("SysIdRotation_State", state.toString())),
-                //         new SysIdRoutine.Mechanism(
-                //                 output -> {
-                //                     /* output is actually radians per second, but SysId only supports "volts" */
-                //                     setControl(rotation.withRotationalRate(output.in(Volts)));
-                //                     /* also log the requested output for SysId */
-                //                     SignalLogger.writeDouble("Rotational_Rate", output.in(Volts));
-                //                 },
-                //                 null,
-                //                 this))
-        };
-
-        SequentialCommandGroup executeAll = new SequentialCommandGroup();
-
-        for (SysIdRoutine routine : routines) {
-            executeAll.addCommands(
-                    routine.dynamic(Direction.kForward),
-                    routine.dynamic(Direction.kReverse),
-                    routine.quasistatic(Direction.kForward),
-                    routine.quasistatic(Direction.kReverse));
-        }
-
-        return executeAll;
     }
 
     @Override
