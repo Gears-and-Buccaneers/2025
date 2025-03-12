@@ -34,6 +34,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
+import frc.robot.subsystems.CoralSensor;
 import frc.robot.util.RateLimiter;
 import frc.robot.subsystems.AprilTags;
 import frc.robot.subsystems.LEDs;
@@ -100,6 +101,8 @@ public class Main extends TimedRobot {
     if (i == 11)
       c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
   }, 1.0, 0.3, 14);
+
+  public final CoralSensor coralSensor = new CoralSensor(0);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(
       new Translation3d(Inches.of(15.0), Inches.zero(), Inches.of(4.25)),
