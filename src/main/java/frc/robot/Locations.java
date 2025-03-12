@@ -12,6 +12,7 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 
@@ -38,6 +39,11 @@ public class Locations {
 
         return poses;
     }
+
+    // Branch heights for levels 2 through 4.
+    public static final double L2 = Units.inchesToMeters(31.72);
+    public static final double L3 = Units.inchesToMeters(47.59);
+    public static final double L4 = Units.inchesToMeters(71.87);
 
     private static double coralOffset = 0.204;
     private static double branchOffset = 0.164;
