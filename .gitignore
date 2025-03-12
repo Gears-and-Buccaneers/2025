@@ -186,3 +186,4 @@ compile_commands.json
 .factorypath
 
 src/main/cpp/build
+src/main/cpp/roborio-academic
