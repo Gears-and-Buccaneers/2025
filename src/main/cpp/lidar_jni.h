@@ -14,14 +14,14 @@ JNIEXPORT jlong JNICALL Java_frc_robot_subsystems_Lidar_construct
 JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_startMotor
   (JNIEnv *, jobject);
 
-JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_startScan
+JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_initialize
   (JNIEnv *, jobject);
 
-JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_poll
-  (JNIEnv *, jobject, jobject);
-
-JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_stopScan
+JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_execute
   (JNIEnv *, jobject);
+
+JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_end
+  (JNIEnv *, jobject, jboolean);
 
 JNIEXPORT void JNICALL Java_frc_robot_subsystems_Lidar_stopMotor
   (JNIEnv *, jobject);

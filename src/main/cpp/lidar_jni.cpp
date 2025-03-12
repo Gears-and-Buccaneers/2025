@@ -28,16 +28,13 @@
 
 static jclass Lidar;
 static jfieldID Lidar_statePtr;
+static jmethodID Lidar_callback;
 
 static jclass Rotation2d;
 static jclass Transform2d;
 
 static jmethodID Rotation2d_init;
 static jmethodID Transform2d_init;
-
-static jclass Consumer;
-
-static jmethodID Consumer_accept;
 
 static sl_lidar_response_measurement_node_hq_t nodes[8192];
 
@@ -70,17 +67,15 @@ jint JNI_OnLoad(JavaVM *vm, __attribute__((unused)) void *reserved) {
     Transform2d = (jclass) env->NewGlobalRef(ctmp);
     env->DeleteLocalRef(ctmp);
 
-    GET(ctmp, FindClass("java/util/function/Consumer"));
-    Consumer = (jclass) env->NewGlobalRef(ctmp);
-    env->DeleteLocalRef(ctmp);
-
     // Load class fields.
     GET(Lidar_statePtr, GetFieldID(Lidar, "statePtr", "J"));
+
+    // Load class methods.
+    GET(Lidar_callback, GetMethodID(Lidar, "accept", "(Ledu/wpi/first/math/geometry/Transform2d;)V"));
 
     // Load class constructors.
     GET(Rotation2d_init, GetMethodID(Rotation2d, "<init>", "(DD)V"));
     GET(Transform2d_init, GetMethodID(Transform2d, "<init>", "(DDLedu/wpi/first/math/geometry/Rotation2d;)V"));
-    GET(Consumer_accept, GetMethodID(Consumer, "accept", "(Ljava/lang/Object;)V"));
 
     return JNI_VERSION;
 }
@@ -135,13 +130,13 @@ void Java_frc_robot_subsystems_Lidar_startMotor(JNIEnv* env, jobject self) {
     st->drv->setMotorSpeed(st->motor_speed);
 }
 
-void Java_frc_robot_subsystems_Lidar_startScan(JNIEnv* env, jobject self) {
+void Java_frc_robot_subsystems_Lidar_initialize(JNIEnv* env, jobject self) {
     State* st = (State*) env->GetLongField(self, Lidar_statePtr);
     if (st == nullptr) return;
     st->drv->startScanExpress(0, st->scan_mode);
 }
 
-void Java_frc_robot_subsystems_Lidar_poll(JNIEnv* env, jobject self, jobject consumer) {
+void Java_frc_robot_subsystems_Lidar_execute(JNIEnv* env, jobject self) {
     State* st = (State*) env->GetLongField(self, Lidar_statePtr);
     if (st == nullptr) return;
 
@@ -150,7 +145,7 @@ void Java_frc_robot_subsystems_Lidar_poll(JNIEnv* env, jobject self, jobject con
     if (SL_IS_FAIL(st->drv->grabScanDataHq(nodes, count, 0))) return;
     
     for (size_t i = 0; i < count; i++)
-        nodes[i].angle_z_q14 = (1 << 15) - nodes[i].angle_z_q14;
+        nodes[i].angle_z_q14 = (1 << 14) + (1 << 12) - nodes[i].angle_z_q14;
 
     st->drv->ascendScanData(nodes, count);
 
@@ -167,10 +162,10 @@ void Java_frc_robot_subsystems_Lidar_poll(JNIEnv* env, jobject self, jobject con
     jobject rot = env->NewObject(Rotation2d, Rotation2d_init, res.rx, res.ry);
     jobject xfm = env->NewObject(Transform2d, Transform2d_init, res.cx, res.cy, rot);
 
-    env->CallVoidMethod(consumer, Consumer_accept, xfm);
+    env->CallVoidMethod(self, Lidar_callback, xfm);
 }
 
-void Java_frc_robot_subsystems_Lidar_stopScan(JNIEnv* env, jobject self) {
+void Java_frc_robot_subsystems_Lidar_end(JNIEnv* env, jobject self, __attribute__((unused)) jboolean interrupted) {
     State* st = (State*) env->GetLongField(self, Lidar_statePtr);
     if (st == nullptr) return;
     st->drv->stop();

@@ -1,22 +1,21 @@
 package frc.robot.subsystems;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Consumer;
 
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
-import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.networktables.NetworkTableInstance;
-import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.Filesystem;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Subsystem;
-import frc.robot.subsystems.Swerve.DriveTo;
 
-public class Lidar implements Subsystem {
+public class Lidar extends Command {
     // The drivetrain, which provides pose data.
     private final Swerve drivetrain;
+    // The subscribers to the lidar data feed.
+    private final List<Consumer<Transform2d>> subscribers;
+    // The transformation from the robot origin to the lidar coordinate origin.
+    private final Transform2d robotToLidar;
     // A native pointer to the driver state.
     private final long statePtr;
 
@@ -31,12 +30,35 @@ public class Lidar implements Subsystem {
         }
     }
 
-    public Lidar(Swerve drivetrain, String path, int baudRate) {
+    public Lidar(Swerve drivetrain, Transform2d robotToLidar, String path, int baudRate) {
         this.drivetrain = drivetrain;
+        this.robotToLidar = robotToLidar;
+        this.subscribers = new ArrayList<>();
         // Construct the rplidar instance.
         this.statePtr = construct();
+    }
 
-        System.out.println("statePtr: " + statePtr);
+    public Command subscribe(Consumer<Transform2d> subscriber) {
+        return new Command() {
+            @Override
+            public void initialize() {
+                if (subscribers.contains(subscriber)) return;
+
+                if (subscribers.isEmpty()) Lidar.this.schedule();
+                subscribers.add(subscriber);
+            }
+
+            @Override
+            public void end(boolean interrupted) {
+                subscribers.remove(subscriber);
+                if (subscribers.isEmpty()) Lidar.this.cancel();
+            }
+
+            @Override
+            public boolean runsWhenDisabled() {
+                return true;
+            }
+        };
     }
 
     // Construct a new lidar driver.
@@ -44,35 +66,25 @@ public class Lidar implements Subsystem {
     // Starts the lidar motor.
     public native void startMotor();
     // Starts the lidar scanning operation.
-    public native void startScan();
+    @Override
+    public native void initialize();
     // Polls the lidar sensor for scan data.
-    public native void poll(Consumer<Transform2d> consumer);
+    @Override
+    public native void execute();
     // Stops the lidar scanning operation.
-    public native void stopScan();
+    @Override
+    public native void end(boolean interrupted);
     // Stops the lidar motor.
     public native void stopMotor();
 
-    public class FeedPose extends Command {
-        private final Consumer<Transform2d> consumer;
+    // The data callback for line detections.
+    private void callback(Transform2d lidarToCenter) {
+        Transform2d robotToCenter = robotToLidar.plus(lidarToCenter);
+        for (var subscriber : subscribers) subscriber.accept(robotToCenter);
+    }
 
-        public FeedPose(Consumer<Transform2d> consumer) {
-            addRequirements(Lidar.this);
-            this.consumer = consumer;
-        }
-
-        @Override
-        public void initialize() {
-            startScan();
-        }
-
-        @Override
-        public void execute() {
-            poll(consumer);
-        }
-
-        @Override
-        public void end(boolean interrupted) {
-            stopScan();
-        }
+    @Override
+    public boolean runsWhenDisabled() {
+        return true;
     }
 }
