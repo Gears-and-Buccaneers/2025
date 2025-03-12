@@ -65,34 +65,32 @@ public class Main extends TimedRobot {
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
 
-    // c.SoftwareLimitSwitch.ReverseSoftLimitEnable = true;
-    // c.SoftwareLimitSwitch.ReverseSoftLimitThreshold = 5.0;
-
-    // c.SoftwareLimitSwitch.ForwardSoftLimitEnable = true;
-    // c.SoftwareLimitSwitch.ForwardSoftLimitThreshold = 180.0;
-
-    c.Slot0.kP = 32;
-    c.Slot0.kD = 2;
-    c.Slot0.kS = 4;
-    c.Slot0.kG = 10;
+    c.Slot0.kP = 80;
+    c.Slot0.kD = 4;
+    c.Slot0.kS = 3;
+    c.Slot0.kG = 17;
 
     c.MotionMagic.MotionMagicCruiseVelocity = 9999;
-    c.MotionMagic.MotionMagicAcceleration = 100;
-  }, 1.0, 0.3, 25);
+    c.MotionMagic.MotionMagicAcceleration = 150;
+    c.MotionMagic.MotionMagicJerk = 600;
+  }, 1.0, 0.3, 25, 26);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.25;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
 
     c.Feedback.SensorToMechanismRatio = 125;
 
-    c.Slot0.kP = 1000;
-    c.Slot0.kD = 40;
-    c.Slot0.kS = 40;
-    c.Slot0.kG = 40;
+    c.Slot0.kP = 2000;
+    c.Slot0.kD = 200;
+    c.Slot0.kS = 20;
+    c.Slot0.kG = 10;
+
+    c.MotionMagic.MotionMagicCruiseVelocity = 9999;
+    c.MotionMagic.MotionMagicAcceleration = 4;
 
     c.Slot0.GravityType = GravityTypeValue.Arm_Cosine;
     c.Slot0.StaticFeedforwardSign = StaticFeedforwardSignValue.UseClosedLoopSign;
-  }, 0.01, 0.5, 11);
+  }, 0.01, 0.5, 12);
   public final MotorSystem coral = new MotorSystem((i, c) -> {
     c.HardwareLimitSwitch.ReverseLimitAutosetPositionEnable = true;
   }, 1.0, 0.15, 10);
