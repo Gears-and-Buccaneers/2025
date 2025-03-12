@@ -1,8 +1,5 @@
 package frc.robot.subsystems;
 
-import static edu.wpi.first.units.Units.Second;
-import static edu.wpi.first.units.Units.Volts;
-
 import java.util.function.BiConsumer;
 import java.util.function.DoubleSupplier;
 
@@ -17,14 +14,10 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 
 import edu.wpi.first.units.measure.Angle;
-import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.SequentialCommandGroup;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.WaitUntilCommand;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 
 public class MotorSystem implements Subsystem {
     protected final TalonFX[] motors;
@@ -64,8 +57,11 @@ public class MotorSystem implements Subsystem {
             motors[i].setControl(follow);
 
         positionSignal = motors[0].getPosition();
+
+        setDefaultCommand(brake());
     }
 
+    /* Methods for setting motor controls and reading sensors */
     public double position() {
         return positionSignal.refresh().getValueAsDouble();
     }
@@ -78,22 +74,11 @@ public class MotorSystem implements Subsystem {
         motors[0].setControl(cachedVout.withOutput(rate * voltageMax));
     }
 
-
-    public void setGoto(double position) {
+    public void setTarget(double position) {
         motors[0].setControl(cachedPosition.withPosition(position));
     }
 
-    public Command moveTo(double target) {
-        return defer(() -> {
-            double start = position();
-
-            if (start > target)
-                return runAt(-1.0).until(() -> position() <= target + deadband);
-            else
-                return runAt(1.0).until(() -> position() >= target - deadband);
-        });
-    }
-
+    /* Commands for those behaviours */
     public Command runWith(DoubleSupplier rate) {
         return run(() -> setRate(rate.getAsDouble()));
     }
@@ -114,30 +99,19 @@ public class MotorSystem implements Subsystem {
     }
 
     public Command goTo(double position) {
-        return startEnd(() -> motors[0].setControl(cachedPosition.withPosition(position)), () -> {
+        return startEnd(() -> setTarget(position), () -> {
         });
+    }
+
+    public Command goTo(DoubleSupplier position) {
+        return run(() -> setTarget(position.getAsDouble()));
     }
 
     public Command atPoint(double position) {
         return new WaitUntilCommand(() -> Math.abs(position() - position) < deadband);
     }
 
-    public Command characterise() {
-        var routine = new SysIdRoutine(
-                new SysIdRoutine.Config(
-                        Volts.of(10.0).per(Second), Voltage.ofBaseUnits(9.0, Volts), null),
-                new SysIdRoutine.Mechanism(v -> motors[0].setControl(cachedTorque.withOutput(v.in(Volts))), l -> {
-                    for (var motor : motors)
-                        l.motor(motor.getDescription())
-                                .voltage(Voltage.ofBaseUnits(motor.getTorqueCurrent().getValueAsDouble(), Volts))
-                                .angularPosition(positionSignal.refresh().getValue())
-                                .angularVelocity(motor.getVelocity().getValue());
-                }, this));
-
-        return new SequentialCommandGroup(
-                routine.dynamic(Direction.kForward),
-                routine.dynamic(Direction.kReverse),
-                routine.quasistatic(Direction.kForward),
-                routine.quasistatic(Direction.kReverse));
+    public Command goToStop(double position) {
+        return goTo(position).raceWith(atPoint(position));
     }
 }
