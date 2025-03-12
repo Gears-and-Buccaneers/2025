@@ -11,13 +11,16 @@ import com.ctre.phoenix6.signals.StaticFeedforwardSignValue;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.auto.NamedCommands;
+import au.grapplerobotics.CanBridge;
 
 import static edu.wpi.first.units.Units.*;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.networktables.DoublePublisher;
@@ -31,7 +34,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-
+import frc.robot.util.WristAngle;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
 import frc.robot.subsystems.CoralSensor;
@@ -99,6 +102,9 @@ public class Main extends TimedRobot {
     if (i == 11)
       c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
   }, 1.0, 0.3, 14);
+  public final MotorSystem climber = new MotorSystem((i, c) -> {
+
+  }, 0.0, 0.5, 11);
 
   public final CoralSensor coralSensor = new CoralSensor(0);
 
@@ -107,7 +113,8 @@ public class Main extends TimedRobot {
       new Rotation3d(Degrees.zero(), Degrees.of(-30), Degrees.zero())),
       drivetrain);
 
-  public final Lidar lidar = new Lidar(drivetrain, null, 0);
+  public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.fromDegrees(-22.5)), null,
+      0);
 
   public final LEDs leds = new LEDs(1);
 
@@ -117,16 +124,14 @@ public class Main extends TimedRobot {
   public static void main(String... args) {
     RobotBase.startRobot(Main::new);
   }
-  
+
   public Main() {
     DriverStation.silenceJoystickConnectionWarning(true);
 
+    CanBridge.runTCP();
+
     autoChooser = AutoBuilder.buildAutoChooser();
     SmartDashboard.putData("Autonomous path", autoChooser);
-
-    RateLimiter xRate = new RateLimiter();
-    RateLimiter yRate = new RateLimiter();
-    SlewRateLimiter rRate = new SlewRateLimiter(15.0);
 
     NamedCommands.registerCommand("Elevator To Low", elevator.goTo(0.0));
     NamedCommands.registerCommand("Elevator At Low", elevator.atPoint(0.0));
@@ -136,10 +141,28 @@ public class Main extends TimedRobot {
 
     NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
 
-    // Note that X is defined as forward according to WPILib convention,
-    // and Y is defined as to the left according to WPILib convention.
+
+    StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
+        .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
+
+
+    /* Default commands */
+    // Switch to coast-mode once we're within deadband of the zero position.
+    // elevator.setDefaultCommand(elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()));
+    wrist.setPosition(0);
+    // wrist.setDefaultCommand(wrist.goToStop(0.1577).andThen(wrist.brake()));
+
+
+    drivetrain.registerTelemetry(logger::telemeterize);
+    Locations.publish();
+
+
+    /* Driver controls */
+    RateLimiter xRate = new RateLimiter();
+    RateLimiter yRate = new RateLimiter();
+    SlewRateLimiter rRate = new SlewRateLimiter(30.0);
+
     drivetrain.setDefaultCommand(
-        // Drivetrain will execute this command periodically
         drivetrain.applyRequest(() -> {
           double limit = MathUtil.clamp(5.0 - 0.1 * elevator.position(), 3.0, 5.0);
 
@@ -150,79 +173,46 @@ public class Main extends TimedRobot {
           return drive;
         }));
 
-    // Lock directions while the right stick is being held.
+    // Lock directions to only forwards and backwards while the right stick is held.
     driver.rightStick().whileTrue(
-        drivetrain.applyRequest(() -> {
-          double xReq = -driver.getLeftY() * MaxSpeed;
-          double yReq = -driver.getLeftX() * MaxSpeed;
-
-          // if (Math.abs(xReq) > Math.abs(yReq))
-          yReq = 0;
-          // else
-          // xReq = 0;
-
-          return robotCentric.withVelocityX(xReq).withVelocityY(yReq);
-        }));
-
-    StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault().getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
-
-    lidar.setDefaultCommand(lidar.new FeedPose(xform -> {
-        // Get the field-relative pose of the center point of the line.
-        Pose2d pose = drivetrain.getState().Pose.transformBy(xform);
-        targetPose.set(pose);
-    }));
+        drivetrain.applyRequest(() -> robotCentric.withVelocityX(-driver.getLeftY() * MaxSpeed)));
+    // PID tuning control while holding the left stick.
+    driver.leftStick().whileTrue(drivetrain.driveTo(Pose2d.kZero, Pose2d.kZero));
 
     // Brake mode.
     driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
-
-    // Run SysId routines when holding the back button.
-    driver.back().onTrue(drivetrain.characterise());
     // Reset the field-centric heading on left bumper press
     driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-    // Snap to the nearest point-of-interest while holding POV buttons.
-    driver.povLeft().whileTrue(
-        wrist.moveTo(0.08).andThen(wrist.brake().alongWith(
-            drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft))
-                .andThen(coral.runAt(-1.0)))));
-    driver.povRight()
-        .whileTrue(drivetrain.snapTo(Locations.withPredicate(Locations.reef, Locations.reefIsLeft.negate())));
-    driver.povDown().whileTrue(drivetrain.snapTo(Locations.station)
-        .alongWith(wrist.moveTo(0.114).andThen(wrist.brake().alongWith(coral.runAt(1.0)))));
+    // Climber controls.
+    driver.leftTrigger(0.5).whileTrue(climber.runAt(1));
+    driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
 
-    // Switch to coast-mode once we're within deadband of the zero position.
-    elevator.setDefaultCommand(elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()));
+    Swerve.DriveTo cmd = drivetrain.new DriveTo(drivetrain.getState().Pose, Pose2d.kZero);
 
-    wrist.setPosition(0.1577);
-    wrist.setDefaultCommand(wrist.moveTo(0.1577).andThen(wrist.brake()));
+    lidar.subscribe(xform -> {
+      // Get the field-relative pose of the center point of the line.
+      Pose2d pose = drivetrain.getState().Pose.transformBy(xform).transformBy(new Transform2d(-1, 0, Rotation2d.kZero));
+      targetPose.set(pose);
+      cmd.setDestination(pose, Pose2d.kZero);
+    }).schedule();
 
-    driver.b().whileTrue(elevator.goTo(58.0).alongWith(
-        wrist.moveTo(-0.0759).andThen(wrist.brake()
-            .alongWith(elevator.atPoint(58.0).andThen(drivetrain.snapTo(Locations.reef), coral.runAt(-1.0))))));
+    driver.start().whileTrue(cmd);
 
-    driver.y().whileTrue(elevator.goTo(172.5).alongWith(
-        wrist.moveTo(-0.0759).andThen(wrist.brake()
-            .alongWith(elevator.atPoint(172.5).andThen(drivetrain.snapTo(Locations.reef), coral.runAt(-1.0))))));
+    /* Operator controls */
+    operator.x().whileTrue(wrist.goTo(new WristAngle(elevator, drivetrain, null, Locations.L2)));
 
-    driver.a().whileTrue(
-        wrist.moveTo(0.08).andThen(wrist.brake().alongWith(drivetrain.snapTo(Locations.reef), coral.runAt(-1.0))));
-
-    coral.setDefaultCommand(coral.brake());
-    algae.setDefaultCommand(algae.brake());
-
+    // Wrist & elevator override controls while holding a & b.
     operator.a().whileTrue(wrist.runWith(() -> -operator.getLeftY()));
     operator.b().whileTrue(elevator.runWith(() -> -operator.getRightY()));
 
-    // Control the coral receptacle with the right triggle & bumper.
+    // Control the coral receptacle with the right trigger & bumper.
     operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
     operator.rightBumper().whileTrue(coral.runAt(-1.0));
 
-    // Control the algae receptacle with the right triggle & bumper.
+    // Control the algae receptacle with the right trigger & bumper.
     operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
     operator.leftBumper().whileTrue(algae.runAt(-1.0));
-
-    drivetrain.registerTelemetry(logger::telemeterize);
-    Locations.publish();
   }
 
   @Override
