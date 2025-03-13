@@ -19,7 +19,7 @@
 #elif __APPLE__
 #define CHANNEL "/dev/tty.SLAB_USBtoUART"
 #else
-#define CHANNEL "/dev/ttyUSB0"
+#define CHANNEL "/dev/ttyUSB1"
 #endif
 
 #define BAUDRATE 115200
@@ -71,7 +71,7 @@ jint JNI_OnLoad(JavaVM *vm, __attribute__((unused)) void *reserved) {
     GET(Lidar_statePtr, GetFieldID(Lidar, "statePtr", "J"));
 
     // Load class methods.
-    GET(Lidar_callback, GetMethodID(Lidar, "accept", "(Ledu/wpi/first/math/geometry/Transform2d;)V"));
+    GET(Lidar_callback, GetMethodID(Lidar, "callback", "(Ledu/wpi/first/math/geometry/Transform2d;)V"));
 
     // Load class constructors.
     GET(Rotation2d_init, GetMethodID(Rotation2d, "<init>", "(DD)V"));
