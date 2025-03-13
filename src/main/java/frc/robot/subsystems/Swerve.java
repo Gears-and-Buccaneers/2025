@@ -7,6 +7,7 @@ import com.ctre.phoenix6.Utils;
 import com.ctre.phoenix6.swerve.SwerveDrivetrainConstants;
 import com.ctre.phoenix6.swerve.SwerveModuleConstants;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveRequest.ForwardPerspectiveValue;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.PIDConstants;
 import com.pathplanner.lib.config.RobotConfig;
@@ -48,7 +49,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     /* Keep track if we've ever applied the operator perspective before or not */
     private boolean m_hasAppliedOperatorPerspective = false;
 
-    public final PathConstraints pathConstraints = new PathConstraints(3.0, 3.0, Math.toRadians(540.0),
+    public final PathConstraints pathConstraints = new PathConstraints(4.0, 4.0, Math.toRadians(540.0),
             Math.toRadians(720.0));
 
     // PID constants for translation
@@ -164,6 +165,7 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
     private void configureAutoBuilder() {
         rPID.enableContinuousInput(-Math.PI, Math.PI);
+        fieldCentric.ForwardPerspective = ForwardPerspectiveValue.BlueAlliance;
 
         SmartDashboard.putData("Drive/xPID", xPID);
         SmartDashboard.putData("Drive/yPID", yPID);
@@ -241,25 +243,23 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
             var pose = getState().Pose;
 
             // TODO: Velocity deadbanding
-            if (Math.abs(pose.getX() - destination.getX()) >= translationDeadband)
-                fieldCentric.VelocityX = xPID.calculate(pose.getX());
-            if (Math.abs(pose.getY() - destination.getY()) >= translationDeadband)
-                fieldCentric.VelocityY = yPID.calculate(pose.getY());
-            if (Math.abs(
-                    pose.getRotation().getRadians() - destination.getRotation().getRadians()) >= rotationDeadband)
-                fieldCentric.RotationalRate = rPID.calculate(pose.getRotation().getRadians());
+            fieldCentric.VelocityX = xPID.calculate(pose.getX());
+            fieldCentric.VelocityY = yPID.calculate(pose.getY());
+            fieldCentric.RotationalRate = rPID.calculate(pose.getRotation().getRadians());
 
             setControl(fieldCentric);
         }
 
         @Override
         public boolean isFinished() {
-            var pose = getState().Pose;
 
-            return Math.abs(pose.getX() - destination.getX()) <= translationDeadband
-                    && Math.abs(pose.getY() - destination.getY()) <= translationDeadband
-                    && Math.abs(pose.getRotation().getRadians()
-                            - destination.getRotation().getRadians()) <= rotationDeadband;
+            return false;
+            // var pose = getState().Pose;
+
+            // return Math.abs(pose.getX() - destination.getX()) <= translationDeadband
+            //         && Math.abs(pose.getY() - destination.getY()) <= translationDeadband
+            //         && Math.abs(pose.getRotation().getRadians()
+            //                 - destination.getRotation().getRadians()) <= rotationDeadband;
         }
     }
 
