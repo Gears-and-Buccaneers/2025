@@ -9,7 +9,6 @@ public class CoralSensor implements Subsystem {
     private final LaserCan sensor;
     private final DoublePublisher publisher = NetworkTableInstance.getDefault().getDoubleTopic("").publish();
 
-
     public CoralSensor(int id) {
         sensor = new LaserCan(id);
         register();
@@ -17,6 +16,9 @@ public class CoralSensor implements Subsystem {
 
     @Override
     public void periodic() {
-        publisher.accept(sensor.getMeasurement().distance_mm);
+        var measurement = sensor.getMeasurement();
+
+        if (measurement != null)
+            publisher.accept(measurement.distance_mm);
     }
 }
