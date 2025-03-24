@@ -152,13 +152,6 @@ void Java_frc_robot_subsystems_Lidar_execute(JNIEnv* env, jobject self) {
     LineRes res;
     if (find_line(WIDTH, nodes + count - 1, nodes, &res) == -1) return;
 
-    jclass rotclass = env->FindClass("edu/wpi/first/math/geometry/Rotation2d");
-
-    if (rotclass == nullptr) {
-        printf("rotclass is null\n");
-        return;
-    }
-
     jobject rot = env->NewObject(Rotation2d, Rotation2d_init, res.rx, res.ry);
     jobject xfm = env->NewObject(Transform2d, Transform2d_init, res.cx, res.cy, rot);
 

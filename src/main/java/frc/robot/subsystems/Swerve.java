@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
 
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.Utils;
@@ -31,6 +32,7 @@ import edu.wpi.first.wpilibj.Notifier;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Subsystem;
+import frc.robot.Locations;
 import frc.robot.generated.TunerConstants.TunerSwerveDrivetrain;
 
 /**
@@ -252,14 +254,12 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
         @Override
         public boolean isFinished() {
+            var pose = getState().Pose;
 
-            return false;
-            // var pose = getState().Pose;
-
-            // return Math.abs(pose.getX() - destination.getX()) <= translationDeadband
-            //         && Math.abs(pose.getY() - destination.getY()) <= translationDeadband
-            //         && Math.abs(pose.getRotation().getRadians()
-            //                 - destination.getRotation().getRadians()) <= rotationDeadband;
+            return Math.abs(pose.getX() - destination.getX()) < translationDeadband
+                    && Math.abs(pose.getY() - destination.getY()) < translationDeadband
+                    && Math.abs(pose.getRotation().getRadians()
+                            - destination.getRotation().getRadians()) < rotationDeadband;
         }
     }
 
@@ -268,25 +268,51 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         return new DriveTo(destination, velocity);
     }
 
+    /** Returns the closest of a set of poses. */
+    public Pose2d nearest(Pose2d[] poses) {
+        Translation2d robot = getState().Pose.getTranslation();
+
+        double minDist = Double.POSITIVE_INFINITY;
+        Pose2d nearest = null;
+
+        for (Pose2d p : poses) {
+            double dist = p.getTranslation().getDistance(robot);
+
+            if (dist < minDist) {
+                minDist = dist;
+                nearest = p;
+            }
+        }
+
+        return nearest;
+    }
+
+    public class FeedReefPose extends Lidar.Subscription {
+        final Consumer<Pose2d> consumer;
+
+        public FeedReefPose(Lidar lidar, Consumer<Pose2d> consumer) {
+            // While the lidar scan is running, provide its poses to the consumer.
+            lidar.super(xform -> consumer.accept(getState().Pose.transformBy(xform)));
+            // Assign the consumer.
+            this.consumer = consumer;
+        }
+
+        @Override
+        public void initialize() {
+            // First, provide the pose of the nearest reef.
+            consumer.accept(nearest(Locations.reef));
+            // Then, start the lidar scanning to refine that pose.
+            super.initialize();
+        }
+    }
+
     /**
      * Returns a command which snaps the drivetrain to the closest of the provided
      * points of interest
      */
     public Command snapTo(Pose2d[] poi) {
         return defer(() -> {
-            Translation2d robot = getState().Pose.getTranslation();
-
-            double minDist = Double.POSITIVE_INFINITY;
-            Pose2d dest = null;
-
-            for (Pose2d p : poi) {
-                double dist = p.getTranslation().getDistance(robot);
-
-                if (dist < minDist) {
-                    minDist = dist;
-                    dest = p;
-                }
-            }
+            Pose2d dest = nearest(poi);
 
             if (dest == null)
                 return new Command() {

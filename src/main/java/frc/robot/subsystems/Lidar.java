@@ -38,27 +38,31 @@ public class Lidar extends Command {
         this.statePtr = construct();
     }
 
-    public Command subscribe(Consumer<Transform2d> subscriber) {
-        return new Command() {
-            @Override
-            public void initialize() {
-                if (subscribers.contains(subscriber)) return;
+    public class Subscription extends Command {
+        private final Consumer<Transform2d> subscriber;
 
-                if (subscribers.isEmpty()) Lidar.this.schedule();
-                subscribers.add(subscriber);
-            }
+        public Subscription(Consumer<Transform2d> subscriber) {
+            this.subscriber = subscriber;
+        }
 
-            @Override
-            public void end(boolean interrupted) {
-                subscribers.remove(subscriber);
-                if (subscribers.isEmpty()) Lidar.this.cancel();
-            }
+        @Override
+        public void initialize() {
+            if (subscribers.contains(subscriber)) return;
 
-            @Override
-            public boolean runsWhenDisabled() {
-                return true;
-            }
-        };
+            if (subscribers.isEmpty()) Lidar.this.schedule();
+            subscribers.add(subscriber);
+        }
+
+        @Override
+        public void end(boolean interrupted) {
+            subscribers.remove(subscriber);
+            if (subscribers.isEmpty()) Lidar.this.cancel();
+        }
+
+        @Override
+        public boolean runsWhenDisabled() {
+            return true;
+        }
     }
 
     // Construct a new lidar driver.

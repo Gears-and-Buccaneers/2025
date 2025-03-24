@@ -12,7 +12,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 
@@ -54,11 +53,15 @@ public class Locations {
     public static IntPredicate stationIsRed = i -> i < 18;
     public static IntPredicate stationIsLeft = i -> i % 18 < 9;
 
-    public static Pose2d[] reef = genPoses(new int[] { 7, 8, 9, 10, 11, 6, 18, 17, 22, 21, 20, 19 },
+    private static int[] reefIds = new int[] { 7, 8, 9, 10, 11, 6, 18, 17, 22, 21, 20, 19 };
+
+    public static Pose2d[] reef = genPoses(reefIds, Translation2d.kZero, 0, 0, 0);
+
+    public static Pose2d[] branches = genPoses(reefIds,
             new Translation2d(0.527, branchOffset - coralOffset), branchOffset * 2, 0, 1);
 
-    public static IntPredicate reefIsRed = i -> i < 12;
-    public static IntPredicate reefIsLeft = i -> switch (i % 12) {
+    public static IntPredicate branchIsRed = i -> i < 12;
+    public static IntPredicate branchIsLeft = i -> switch (i % 12) {
         // If the index is for one of the front three reef zones, then it is left if it
         // is the second.
         case 1, 3, 11 -> true;
@@ -92,7 +95,7 @@ public class Locations {
         NetworkTable table = NetworkTableInstance.getDefault().getTable("Locations");
 
         table.getStructArrayTopic("Station", Pose2d.struct).publish().set(station);
-        table.getStructArrayTopic("Reef", Pose2d.struct).publish().set(reef);
+        table.getStructArrayTopic("Branches", Pose2d.struct).publish().set(branches);
         table.getStructArrayTopic("Cage", Pose2d.struct).publish().set(cage);
     }
 }
