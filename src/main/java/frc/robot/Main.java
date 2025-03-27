@@ -4,6 +4,7 @@
 
 package frc.robot;
 
+import com.ctre.phoenix6.signals.FeedbackSensorSourceValue;
 import com.ctre.phoenix6.signals.GravityTypeValue;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -82,7 +83,9 @@ public class Main extends TimedRobot {
     c.MotorOutput.DutyCycleNeutralDeadband = 0.25;
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
 
-    c.Feedback.SensorToMechanismRatio = 125;
+    c.Feedback.RotorToSensorRatio = 125;
+    c.Feedback.FeedbackSensorSource = FeedbackSensorSourceValue.FusedCANcoder;
+    c.Feedback.FeedbackRemoteSensorID = 0;
 
     c.Slot0.kP = 2000;
     c.Slot0.kD = 200;
