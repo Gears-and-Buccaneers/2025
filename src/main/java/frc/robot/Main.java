@@ -15,6 +15,8 @@ import au.grapplerobotics.CanBridge;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.security.PrivateKey;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -35,7 +37,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
+import edu.wpi.first.wpilibj2.command.RunCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.POVButton;
 import frc.robot.util.WristAngle;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
@@ -48,6 +52,18 @@ import frc.robot.subsystems.LimitMotorSystem;
 import frc.robot.subsystems.MotorSystem;
 
 public class Main extends TimedRobot {
+
+
+
+  private double L1 = 0;
+  private double L2 = 15.6; //wrist position -0.086, 8.375 in from the reef
+  private double L3 = 28;
+  private double L4 = 43; 
+
+  
+  private double maxWristRotation = 0.13;
+  
+
   private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
   private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max
                                                                                     // angular velocity
@@ -66,7 +82,7 @@ public class Main extends TimedRobot {
   /* Initialise robot systems */
   public final Swerve drivetrain = TunerConstants.createDrivetrain();
 
-  public final LimitMotorSystem elevator = new LimitMotorSystem(9, (i, c) -> {
+  public final MotorSystem elevator = new MotorSystem((i, c) -> {
     c.MotorOutput.NeutralMode = NeutralModeValue.Brake;
     c.MotorOutput.Inverted = InvertedValue.Clockwise_Positive;
 
@@ -205,17 +221,14 @@ public class Main extends TimedRobot {
 
     // lidarTracking.addRequirements(wrist);
 
-    // operator.x().whileTrue(lidarTracking);
+    // operator.x().whi   leTrue(lidarTracking);
 
     operator.x().whileTrue(
       wrist.goTo(() -> MathUtil.clamp(wristAngleCalc.calculate(Translation2d.kZero), -0.1125, 0.1372))
     );
 
     operator.y().whileTrue(
-        new ParallelCommandGroup(
-          elevator.goTo(43.0),
-          wrist.goTo(() -> MathUtil.clamp(wristAngleCalc.calculate(Translation2d.kZero), -0.1125, 0.1372))
-        )
+          elevator.goTo(43).alongWith(elevator.atPoint(43).andThen(wrist.goToStop(-0.086).alongWith(coral.runAt(1)).andThen(coral.runAt(-1).withTimeout(0.3))))        
     );
 
     // Wrist & elevator override controls while holding a & b.
@@ -227,8 +240,12 @@ public class Main extends TimedRobot {
     operator.rightBumper().whileTrue(coral.runAt(-1.0));
 
     // Control the algae receptacle with the right trigger & bumper.
-    operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
+    operator.leftTrigger(
+      0.5).whileTrue(algae.runAt(1.0));
     operator.leftBumper().whileTrue(algae.runAt(-1.0));
+
+    //operator.a().whileTrue(elevator.goTo(L2));
+
   }
 
   @Override
