@@ -49,11 +49,10 @@ import frc.robot.subsystems.Lidar;
 import frc.robot.subsystems.MotorSystem;
 
 public class Main extends TimedRobot {
-  private double intakePosition = .138;
-
   private Level target = Level.L4;
-
-  private double maxWristRotation = 0.13;
+  
+  private double intakePosition = .138;
+  private double maxWristRotation = 0.115;
 
   private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
   private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max
@@ -211,18 +210,14 @@ public class Main extends TimedRobot {
     // Lock directions to only forwards and backwards while the right stick is held.
     driver.rightStick().whileTrue(
         drivetrain.applyRequest(() -> robotCentric.withVelocityX(-driver.getLeftY() * MaxSpeed)));
-    // PID tuning control while holding the left stick.
-    driver.start().whileTrue(drivetrain.new DriveTo(Pose2d.kZero, Pose2d.kZero));
 
     // Brake mode.
     driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
     // Reset the field-centric heading on left bumper press
     driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-    driver.back().onTrue(drivetrain.runOnce(drivetrain::tareEverything));
-
     // Climber controls.
-    driver.leftTrigger(0.5).whileTrue(climber.runAt(1));
+    driver.rightBumper().whileTrue(climber.runAt(1));
     driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
 
     driver.y().whileTrue(/* Add auto drive train snapping */ toTargetHeight());
