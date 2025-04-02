@@ -9,6 +9,7 @@ public class Toggle extends Command {
     private final Command cmdB;
     private final BooleanSupplier toggle;
     private boolean useA = true;
+    private boolean previous = false;
 
     public Toggle(Command cmdA, Command cmdB, BooleanSupplier toggle) {
         this.cmdA = cmdA;
@@ -26,11 +27,15 @@ public class Toggle extends Command {
 
     @Override
     public void execute() {
-        if (toggle.getAsBoolean()) {
+        var current = toggle.getAsBoolean();
+
+        if (current && !previous) {
             end(false);
             useA = !useA;
             initialize();
         }
+
+        previous = current;
     }
 
     @Override
