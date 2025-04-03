@@ -30,7 +30,7 @@ public class Lidar extends Command {
         }
     }
 
-    public Lidar(Swerve drivetrain, Transform2d robotToLidar, String path, int baudRate) {
+    public Lidar(Swerve drivetrain, Transform2d robotToLidar) {
         this.drivetrain = drivetrain;
         this.robotToLidar = robotToLidar;
         this.subscribers = new ArrayList<>();

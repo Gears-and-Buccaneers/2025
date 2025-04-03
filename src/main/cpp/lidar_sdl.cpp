@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vector>
+#include "math.h"
 
 #include <SDL3/SDL.h>
 
@@ -15,7 +16,7 @@
 #include "sl_lidar.h"
 #include "sl_lidar_driver.h"
 
-#define WIDTH 0.94
+#define WIDTH 0.30
 
 #define ARRAY_LEN(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 
@@ -85,7 +86,7 @@ struct Camera {
 };
 
 int main() {
-	sl_u32 baudrate = 115200;
+	sl_u32 baudrate = 256000;
 	IChannel *_channel;
 
 #ifdef _WIN32
@@ -121,25 +122,30 @@ int main() {
 	}
 
 	LidarMotorInfo motor;
-	sl_u16 motorSpeed = DEFAULT_MOTOR_SPEED;
 
 	if (SL_IS_OK(drv->getMotorInfo(motor))) {
 		printf("motor: min=%i desired=%i max=%i ty=%i\n", motor.min_speed, motor.desired_speed, motor.max_speed, motor.motorCtrlSupport);
-		motorSpeed = 1;
 	}
 
-	drv->setMotorSpeed(65534);
+	drv->setMotorSpeed(DEFAULT_MOTOR_SPEED);
 
 	LidarScanMode selectedMode;
 	std::vector<LidarScanMode> modes = {};
+
+	printf("Scan modes:\n");
 
 	if (SL_IS_OK(drv->getAllSupportedScanModes(modes))) {
 		int best;
 		float bestRate = INFINITY;
 
-		for (const LidarScanMode& m : modes)
-			if (m.us_per_sample < bestRate)
+		for (const LidarScanMode& m : modes) {
+			printf("%s: max dist=%fm us per sample=%f\n", m.scan_mode, m.max_distance, m.us_per_sample);
+
+			if (m.us_per_sample < bestRate) {
 				best = m.id;
+				bestRate = m.us_per_sample;
+			}
+		}
 
 		drv->startScanExpress(0, best, 0, &selectedMode);
 	} else {
@@ -200,13 +206,14 @@ int main() {
 			printf("frequency: %f\n", freq);
 
 			for (size_t i = 0; i < count; i++)
-				nodes[i].angle_z_q14 = (1 << 15) - nodes[i].angle_z_q14;
+				nodes[i].angle_z_q14 = (1 << 14) - nodes[i].angle_z_q14;
 
 			drv->ascendScanData(nodes, count);
 
 			if (find_line(WIDTH, nodes + count - 1, nodes, &res, &dbg) == -1) {
 				printf("ERROR: line fitting failed\n");
-				return 0;
+				// return 0;
+				break;
 			};
 
 			printf("cx=%f cy=%f rx=%f ry=%f\n", res.cx, res.cy, res.rx, res.ry);
@@ -272,6 +279,8 @@ int main() {
 
 		cam.line(0, 0, res.cx, res.cy, 0xFFFF00FF);
 		cam.line(0, 0, res.rx * 5.0, res.ry * 5.0, 0xFFFF00FF);
+
+		cam.line(0, 0, 1.0, 0.0, 0xFFFFFFFF);
 
 		SDL_RenderPresent(cam.rend);
 	}

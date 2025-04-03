@@ -20,7 +20,6 @@ import java.util.function.Supplier;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
@@ -126,8 +125,7 @@ public class Main extends TimedRobot {
       new Rotation3d(Degrees.zero(), Degrees.of(-30), Degrees.zero())),
       drivetrain);
 
-  public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.fromDegrees(-22.5)), null,
-      0);
+  public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.kZero));
 
   public final LEDs leds = new LEDs(1);
 
@@ -176,8 +174,8 @@ public class Main extends TimedRobot {
 
     NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
 
-    StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
-        .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
+    StructPublisher<Transform2d> targetPose = NetworkTableInstance.getDefault()
+        .getStructTopic("Lidar Target Pose", Transform2d.struct).publish();
 
     /* Default commands */
     // Switch to coast-mode once we're within deadband of the zero position.+
@@ -235,18 +233,17 @@ public class Main extends TimedRobot {
 
     /* Operator controls */
 
-    // Command lidarTracking = lidar.subscribe(xform -> {
-    // wrist.setTarget(wristAngleCalc.calculate(xform.getTranslation()));
-    // });
+    Command lidarTracking = lidar.new Subscription(xform -> {
+      targetPose.set(xform);
+    });
 
-    // lidarTracking.addRequirements(wrist);
-    // operator.x().whileTrue(lidarTracking);
-    
-    //Lock elevator, but manual wrist
-    operator.x().whileTrue(new DeferredCommand(() -> elevator.goTo(elevator.position()), Set.of(elevator))
+    operator.x().whileTrue(lidarTracking);
+
+    // Lock elevator, but manual wrist
+    operator.a().whileTrue(new DeferredCommand(() -> elevator.goTo(elevator.position()), Set.of(elevator))
         .alongWith(wrist.runWith(() -> -operator.getLeftY())));
 
-    // Level Shifter  
+    // Level Shifter
     operator.povUp().or(operator.povUpLeft()).or(operator.povUpRight()).debounce(0.5)
         .onTrue(setTarget(() -> target.next()));
     operator.povDown().or(operator.povDownLeft()).or(operator.povDownRight()).debounce(0.5)
