@@ -201,7 +201,7 @@ public class Main extends TimedRobot {
 
     drivetrain.setDefaultCommand(
         drivetrain.applyRequest(() -> {
-          double limit = MathUtil.clamp(5.0 - 0.1 * elevator.position(), 3.0, 5.0);
+          double limit = MathUtil.clamp(10.0 - 0.1 * elevator.position(), 3.0, 5.0);
 
           drive.VelocityX = xRate.calculate(-driver.getLeftY() * MaxSpeed, drive.VelocityX, limit);
           drive.VelocityY = yRate.calculate(-driver.getLeftX() * MaxSpeed, drive.VelocityY, limit);
@@ -263,8 +263,8 @@ public class Main extends TimedRobot {
         .onTrue(setTarget(() -> target.prev()));
 
     // Control the coral receptacle with the right trigger & bumper.
-    operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
-    operator.rightBumper().whileTrue(coral.runAt(-1.0).alongWith(wrist.goToStop(intakePosition)));
+    operator.rightTrigger(0.5).whileTrue(coral.runAt(-1.0));
+    operator.rightBumper().whileTrue(coral.runAt(1.0).alongWith(wrist.goToStop(intakePosition)));
 
     // Control the algae receptacle with the right trigger & bumper.
     operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));

@@ -86,7 +86,7 @@ struct Camera {
 };
 
 int main() {
-	sl_u32 baudrate = 256000;
+	sl_u32 baudrate = 115200;
 	IChannel *_channel;
 
 #ifdef _WIN32
