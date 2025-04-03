@@ -24,6 +24,8 @@ import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
+import edu.wpi.first.networktables.NetworkTableInstance;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -286,6 +288,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         return nearest;
     }
 
+    private final StructPublisher<Transform2d> aaa = NetworkTableInstance.getDefault().getStructTopic("aaa", Transform2d.struct).publish();
+
     public class FeedReefPose extends Lidar.Subscription implements Supplier<Pose2d> {
         // Store the most recent LiDAR data, if any.
         private double timestamp;
@@ -302,22 +306,29 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
             // While the lidar scan is running, consume its output.
             subscriber = xform -> {
+                aaa.set(xform);
                 // TODO: use the sensor's hardware timestamp.
                 timestamp = Utils.getCurrentTimeSeconds();
                 this.xform = xform;
+                dest = getState().Pose.plus(xform).plus(off);
             };
         }
 
         @Override
         public Pose2d get() {
-            // If we have no LiDAR data yet and we haven't initialised the nearest reef pose already, then choose the nearest reef tag.
-            if (xform == null && dest == null) {
-                dest = nearest(Locations.reef).plus(off);
-             // If we do have LiDAR data, use it to calculate the offset.
-            } else if (xform != null) {
-                var pose = samplePoseAt(timestamp);
-                if (pose.isPresent()) dest = pose.get().plus(off);
-            }
+            SmartDashboard.putNumber("LiDAR data timestamp", timestamp);
+
+            // // If we have no LiDAR data yet and we haven't initialised the nearest reef pose already, then choose the nearest reef tag.
+            // if (xform == null && dest == null) {
+            //     dest = getState().Pose;
+            //     // dest = nearest(Locations.reef).plus(off);
+            // // If we do have LiDAR data, use it to calculate the offset.
+            // } else if (xform != null) {
+            //     var pose = samplePoseAt(timestamp);
+            //     if (pose.isPresent()) dest = pose.get().plus(xform).plus(off);
+            // }
+
+            if (dest == null) return getState().Pose;
 
             return dest;
         }

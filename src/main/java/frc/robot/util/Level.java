@@ -18,7 +18,7 @@ public enum Level {
     }
 
     public Level next() {
-        return lvls[Math.min(ordinal() + 1, lvls.length)];
+        return lvls[Math.min(ordinal() + 1, lvls.length - 1)];
     }
 
     public Level prev() {

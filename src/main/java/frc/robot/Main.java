@@ -123,7 +123,7 @@ public class Main extends TimedRobot {
   public final CoralSensor coralSensor = new CoralSensor(0);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(
-      new Translation3d(Inches.of(15.0 - 4.75), Inches.of(15.0 - 2.375), Inches.zero()), Rotation3d.kZero),
+      new Translation3d(Inches.of(15.0 - 4.75), Inches.of(-15.0 + 2.375), Inches.zero()), Rotation3d.kZero),
       drivetrain);
 
   public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.kZero));
@@ -147,11 +147,12 @@ public class Main extends TimedRobot {
   /** Elevator and Wrist without Drive Train **/
   public Command toTargetHeight() {
     return Commands.deferredProxy(
-        () -> elevator.goTo(target.height).raceWith(elevator.atPoint(target.height)
+        () -> elevator.goTo(target.height).alongWith(elevator.atPoint(target.height)
             .andThen(
-                wrist.goToStop(-0.086),
+                wrist.goTo(-0.086))));
+                /* ,
                 coral.runAt(-1).withTimeout(0.7),
-                wrist.goToStop(.1))));
+                wrist.goToStop(.1) */
   }
 
   public static void main(String... args) {
@@ -192,9 +193,15 @@ public class Main extends TimedRobot {
         drivetrain.applyRequest(() -> {
           double limit = MathUtil.clamp(10.0 - 0.1 * elevator.position(), 3.0, 5.0);
 
-          drive.VelocityX = xRate.calculate(-driver.getLeftY() * MaxSpeed, drive.VelocityX, limit);
-          drive.VelocityY = yRate.calculate(-driver.getLeftX() * MaxSpeed, drive.VelocityY, limit);
-          drive.RotationalRate = rRate.calculate(-driver.getRightX() * MaxAngularRate);
+          if (driver.rightTrigger().getAsBoolean()) {
+            drive.VelocityX = -driver.getLeftY() * MaxSpeed;
+            drive.VelocityY = -driver.getLeftX() * MaxSpeed;
+            drive.RotationalRate = -driver.getRightX() * MaxAngularRate;
+          } else {
+            drive.VelocityX = xRate.calculate(-driver.getLeftY() * MaxSpeed, drive.VelocityX, limit);
+            drive.VelocityY = yRate.calculate(-driver.getLeftX() * MaxSpeed, drive.VelocityY, limit);
+            drive.RotationalRate = rRate.calculate(-driver.getRightX() * MaxAngularRate);
+          }
 
           return drive;
         }));
@@ -212,21 +219,26 @@ public class Main extends TimedRobot {
     driver.rightBumper().whileTrue(climber.runAt(1));
     driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
 
-    var feedReef = drivetrain.new FeedReefPose(lidar, new Transform2d(Inches.of(-25.25), Inches.zero(), Rotation2d.kZero));
-    var driveToReef = drivetrain.new DriveTo(Pose2d.kZero, Pose2d.kZero);
-        
-    driver.a().whileTrue(new ParallelCommandGroup(
-      // Poll the LiDAR.
-      feedReef,
-      // Feed the output to the drivetrain controller.
-      Commands.run(() -> {
-        var reefPose = feedReef.get();
+    // var feedReef = drivetrain.new FeedReefPose(lidar, new Transform2d(Inches.of(-25.25), Inches.zero(), Rotation2d.kZero));
+    // var driveToReef = drivetrain.new DriveTo(Pose2d.kZero, Pose2d.kZero);
 
-        driveToReef.setDestination(reefPose, Pose2d.kZero);
-        targetPose.set(reefPose);
-      })
-      // Use the drivetrain controller to snap to the target position.
-      // driveToReef
+    // driver.a().whileTrue(new ParallelCommandGroup(
+    //   // Poll the LiDAR.
+    //   feedReef,
+    //   // Feed the output to the drivetrain controller.
+    //   Commands.run(() -> {
+    //     var reefPose = feedReef.get();
+
+    //     driveToReef.setDestination(reefPose, Pose2d.kZero);
+    //     targetPose.set(reefPose);
+    //   })
+    //   // Use the drivetrain controller to snap to the target position.
+    //   // driveToReef
+    // ));
+
+
+    driver.a().whileTrue(new ParallelCommandGroup(
+      drivetrain.snapTo(Locations.branches)
     ));
 
     // Swerve.DriveTo cmd = drivetrain.new DriveTo(drivetrain.getState().Pose,
