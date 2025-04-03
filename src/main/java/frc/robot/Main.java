@@ -116,8 +116,7 @@ public class Main extends TimedRobot {
       new Rotation3d(Degrees.zero(), Degrees.of(-30), Degrees.zero())),
       drivetrain);
 
-  public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.fromDegrees(-22.5)), null,
-      0);
+  public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.kZero));
 
   public final LEDs leds = new LEDs(1);
 
@@ -144,8 +143,8 @@ public class Main extends TimedRobot {
 
     NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
 
-    StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
-        .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
+    StructPublisher<Transform2d> targetPose = NetworkTableInstance.getDefault()
+        .getStructTopic("Lidar Target Pose", Transform2d.struct).publish();
 
     /* Default commands */
     // Switch to coast-mode once we're within deadband of the zero position.
@@ -199,13 +198,11 @@ public class Main extends TimedRobot {
     // driver.start().whileTrue(cmd);
 
     /* Operator controls */
-    // Command lidarTracking = lidar.subscribe(xform -> {
-    //   wrist.setTarget(wristAngleCalc.calculate(xform.getTranslation()));
-    // });
+    Command lidarTracking = lidar.new Subscription(xform -> {
+      targetPose.set(xform);
+    });
 
-    // lidarTracking.addRequirements(wrist);
-
-    // operator.x().whileTrue(lidarTracking);
+    operator.x().whileTrue(lidarTracking);
 
     operator.x().whileTrue(
       wrist.goTo(() -> MathUtil.clamp(wristAngleCalc.calculate(Translation2d.kZero), -0.1125, 0.1372))

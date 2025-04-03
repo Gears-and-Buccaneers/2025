@@ -12,7 +12,7 @@
     return JNI_ERR;                                              \
 }
 
-#define WIDTH 1.11
+#define WIDTH 0.30
 
 #ifdef _WIN32
 #define CHANNEL "\\\\.\\com3"
@@ -22,7 +22,7 @@
 #define CHANNEL "/dev/ttyUSB1"
 #endif
 
-#define BAUDRATE 115200
+#define BAUDRATE 256000
 
 #define JNI_VERSION JNI_VERSION_1_6
 
@@ -42,7 +42,6 @@ struct State {
     sl::IChannel* chan;
     sl::ILidarDriver* drv;
 
-    sl_u16 motor_speed;
     sl_u16 scan_mode;
 };
 
@@ -116,9 +115,12 @@ jlong Java_frc_robot_subsystems_Lidar_construct(__attribute__((unused)) JNIEnv* 
 
     float best = modes[0].us_per_sample;
 
-    for (size_t i = 1; i < modes.size(); ++i)
-        if (modes[i].us_per_sample < best)
+    for (size_t i = 1; i < modes.size(); ++i) {
+        if (modes[i].us_per_sample < best) {
             st->scan_mode = modes[i].id;
+            best = modes[i].us_per_sample;
+        }
+    }
 
     // Return the state pointer as an integer.
     return (long) st;
@@ -127,7 +129,7 @@ jlong Java_frc_robot_subsystems_Lidar_construct(__attribute__((unused)) JNIEnv* 
 void Java_frc_robot_subsystems_Lidar_startMotor(JNIEnv* env, jobject self) {
     State* st = (State*) env->GetLongField(self, Lidar_statePtr);
     if (st == nullptr) return;
-    st->drv->setMotorSpeed(st->motor_speed);
+    st->drv->setMotorSpeed(DEFAULT_MOTOR_SPEED);
 }
 
 void Java_frc_robot_subsystems_Lidar_initialize(JNIEnv* env, jobject self) {
@@ -145,7 +147,7 @@ void Java_frc_robot_subsystems_Lidar_execute(JNIEnv* env, jobject self) {
     if (SL_IS_FAIL(st->drv->grabScanDataHq(nodes, count, 0))) return;
     
     for (size_t i = 0; i < count; i++)
-        nodes[i].angle_z_q14 = (1 << 14) + (1 << 12) - nodes[i].angle_z_q14;
+        nodes[i].angle_z_q14 = (1 << 14) - nodes[i].angle_z_q14;
 
     st->drv->ascendScanData(nodes, count);
 
