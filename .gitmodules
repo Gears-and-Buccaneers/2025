@@ -1,6 +1,6 @@
 [submodule "src/main/cpp/rplidar_sdk"]
 	path = src/main/cpp/rplidar_sdk
-	url = git@github.com:Slamtec/rplidar_sdk.git
+	url = git@github.com:Gears-and-Buccaneers/rplidar_sdk.git
 [submodule "src/main/cpp/gradle-jni"]
 	path = src/main/cpp/gradle-jni
 	url = git@github.com:wpilibsuite/gradle-jni.git
