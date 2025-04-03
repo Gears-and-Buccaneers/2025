@@ -1,7 +1,5 @@
 package frc.robot.subsystems;
 
-
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import com.ctre.phoenix6.Utils;
@@ -20,6 +18,7 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
@@ -287,22 +286,40 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         return nearest;
     }
 
-    public class FeedReefPose extends Lidar.Subscription {
-        final Consumer<Pose2d> consumer;
+    public class FeedReefPose extends Lidar.Subscription implements Supplier<Pose2d> {
+        // Store the most recent LiDAR data, if any.
+        private double timestamp;
+        private Transform2d xform;
+        // Store the most recently calculated LiDAR-based pose in case the timestamp falls outside of the filter buffer.
+        private Pose2d dest;
+        // Allow for an offset of the reef pose for convenience.
+        private final Transform2d off;
 
-        public FeedReefPose(Lidar lidar, Consumer<Pose2d> consumer) {
-            // While the lidar scan is running, provide its poses to the consumer.
-            lidar.super(xform -> consumer.accept(getState().Pose.transformBy(xform)));
-            // Assign the consumer.
-            this.consumer = consumer;
+        public FeedReefPose(Lidar lidar, Transform2d off) {
+            lidar.super(null);
+
+            this.off = off;
+
+            // While the lidar scan is running, consume its output.
+            subscriber = xform -> {
+                // TODO: use the sensor's hardware timestamp.
+                timestamp = Utils.getCurrentTimeSeconds();
+                this.xform = xform;
+            };
         }
 
         @Override
-        public void initialize() {
-            // First, provide the pose of the nearest reef.
-            consumer.accept(nearest(Locations.reef));
-            // Then, start the lidar scanning to refine that pose.
-            super.initialize();
+        public Pose2d get() {
+            // If we have no LiDAR data yet and we haven't initialised the nearest reef pose already, then choose the nearest reef tag.
+            if (xform == null && dest == null) {
+                dest = nearest(Locations.reef).plus(off);
+             // If we do have LiDAR data, use it to calculate the offset.
+            } else if (xform != null) {
+                var pose = samplePoseAt(timestamp);
+                if (pose.isPresent()) dest = pose.get().plus(off);
+            }
+
+            return dest;
         }
     }
 

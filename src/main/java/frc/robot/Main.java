@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform2d;
@@ -38,6 +39,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.DeferredCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
+import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.util.WristAngle;
 import frc.robot.generated.TunerConstants;
@@ -121,8 +123,7 @@ public class Main extends TimedRobot {
   public final CoralSensor coralSensor = new CoralSensor(0);
 
   public final AprilTags tags = new AprilTags("camera", new Transform3d(
-      new Translation3d(Inches.of(15.0), Inches.zero(), Inches.of(4.25)),
-      new Rotation3d(Degrees.zero(), Degrees.of(-30), Degrees.zero())),
+      new Translation3d(Inches.of(15.0 - 4.75), Inches.of(15.0 - 2.375), Inches.zero()), Rotation3d.kZero),
       drivetrain);
 
   public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.kZero));
@@ -216,13 +217,23 @@ public class Main extends TimedRobot {
     // Brake mode.
     driver.x().whileTrue(drivetrain.applyRequest(() -> brake));
     // Reset the field-centric heading on left bumper press
-    driver.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+    driver.start().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
     // Climber controls.
     driver.rightBumper().whileTrue(climber.runAt(1));
     driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
 
-    driver.y().whileTrue(/* Add auto drive train snapping */ toTargetHeight());
+    var feedReef = drivetrain.new FeedReefPose(lidar, new Transform2d(-1.0, 0.0, Rotation2d.kZero));
+    var driveToReef = drivetrain.new DriveTo(null, Pose2d.kZero);
+        
+    driver.a().whileTrue(new ParallelCommandGroup(
+      // Poll the LiDAR.
+      feedReef,
+      // Feed the output to the drivetrain controller.
+      Commands.run(() -> driveToReef.setDestination(feedReef.get(), Pose2d.kZero)),
+      // Use the drivetrain controller to snap to the target position.
+      driveToReef
+    ));
 
     // Swerve.DriveTo cmd = drivetrain.new DriveTo(drivetrain.getState().Pose,
     // Pose2d.kZero);
@@ -242,6 +253,8 @@ public class Main extends TimedRobot {
     // Lock elevator, but manual wrist
     operator.a().whileTrue(new DeferredCommand(() -> elevator.goTo(elevator.position()), Set.of(elevator))
         .alongWith(wrist.runWith(() -> -operator.getLeftY())));
+
+    operator.b().whileTrue(toTargetHeight());
 
     // Level Shifter
     operator.povUp().or(operator.povUpLeft()).or(operator.povUpRight()).debounce(0.5)

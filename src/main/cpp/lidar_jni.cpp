@@ -12,7 +12,7 @@
     return JNI_ERR;                                              \
 }
 
-#define WIDTH 0.30
+#define WIDTH 0.94
 
 #ifdef _WIN32
 #define CHANNEL "\\\\.\\com3"

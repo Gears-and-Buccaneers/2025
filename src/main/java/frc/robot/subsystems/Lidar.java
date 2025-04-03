@@ -39,7 +39,7 @@ public class Lidar extends Command {
     }
 
     public class Subscription extends Command {
-        private final Consumer<Transform2d> subscriber;
+        protected Consumer<Transform2d> subscriber;
 
         public Subscription(Consumer<Transform2d> subscriber) {
             this.subscriber = subscriber;
