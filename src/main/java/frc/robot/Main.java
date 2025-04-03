@@ -15,6 +15,9 @@ import au.grapplerobotics.CanBridge;
 
 import static edu.wpi.first.units.Units.*;
 
+import java.util.Set;
+import java.util.function.Supplier;
+
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -34,6 +37,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.DeferredCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.util.WristAngle;
@@ -50,7 +54,7 @@ import frc.robot.subsystems.MotorSystem;
 
 public class Main extends TimedRobot {
   private Level target = Level.L4;
-  
+
   private double intakePosition = .138;
   private double maxWristRotation = 0.115;
 
@@ -134,9 +138,9 @@ public class Main extends TimedRobot {
     leds.setColor(target.color);
   }
 
-  public Command setTarget(Level level) {
+  public Command setTarget(Supplier<Level> level) {
     return new InstantCommand(() -> {
-      target = level;
+      target = level.get();
       updateLED();
     });
   }
@@ -236,16 +240,21 @@ public class Main extends TimedRobot {
     // });
 
     // lidarTracking.addRequirements(wrist);
-
     // operator.x().whileTrue(lidarTracking);
-    operator.a().onTrue(setTarget(Level.L1));
-    operator.b().onTrue(setTarget(Level.L2));
-    operator.x().onTrue(setTarget(Level.L3));
-    operator.y().onTrue(setTarget(Level.L4));
+    
+    //Lock elevator, but manual wrist
+    operator.x().whileTrue(new DeferredCommand(() -> elevator.goTo(elevator.position()), Set.of(elevator))
+        .alongWith(wrist.runWith(() -> -operator.getLeftY())));
+
+    // Level Shifter  
+    operator.povUp().or(operator.povUpLeft()).or(operator.povUpRight()).debounce(0.5)
+        .onTrue(setTarget(() -> target.next()));
+    operator.povDown().or(operator.povDownLeft()).or(operator.povDownRight()).debounce(0.5)
+        .onTrue(setTarget(() -> target.prev()));
 
     // Control the coral receptacle with the right trigger & bumper.
     operator.rightTrigger(0.5).whileTrue(coral.runAt(1.0));
-    operator.rightBumper().whileTrue(coral.runAt(-1.0));
+    operator.rightBumper().whileTrue(coral.runAt(-1.0).alongWith(wrist.goToStop(intakePosition)));
 
     // Control the algae receptacle with the right trigger & bumper.
     operator.leftTrigger(0.5).whileTrue(algae.runAt(1.0));
