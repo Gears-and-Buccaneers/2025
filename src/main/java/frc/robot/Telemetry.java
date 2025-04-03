@@ -20,7 +20,7 @@ public class Telemetry {
      * @param maxSpeed Maximum speed in meters per second
      */
     public Telemetry() {
-        SignalLogger.start();
+        // SignalLogger.start();
     }
 
     /* What to publish over networktables for telemetry */

@@ -1,5 +1,3 @@
-package frc.robot.util;
-
 public enum Level {
     // wrist position -0.086, 8.375 in from the reef
     L1(0, 0xff0000),
@@ -23,5 +21,9 @@ public enum Level {
 
     public Level prev() {
         return lvls[Math.max(ordinal() - 1, 0)];
+    }
+
+    public static void main(String[] args) {
+        System.out.println(Level.L4 + ".prev() = " + Level.L4.prev());
     }
 }

@@ -20,6 +20,7 @@ import java.util.function.Supplier;
 
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.SlewRateLimiter;
+import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
@@ -41,7 +42,6 @@ import edu.wpi.first.wpilibj2.command.DeferredCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
-import frc.robot.util.WristAngle;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
 import frc.robot.subsystems.CoralSensor;
@@ -175,22 +175,11 @@ public class Main extends TimedRobot {
 
     NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
 
-    StructPublisher<Transform2d> targetPose = NetworkTableInstance.getDefault()
-        .getStructTopic("Lidar Target Pose", Transform2d.struct).publish();
+    StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
+        .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
 
     /* Default commands */
     // Switch to coast-mode once we're within deadband of the zero position.+
-    elevator.setDefaultCommand(new Toggle(
-        elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()),
-        elevator.runWith(() -> -operator.getRightY()),
-        operator.rightStick()));
-    wrist.setPosition(0);
-    elevator.setPosition(0);
-    wrist.setDefaultCommand(new Toggle(
-        wrist.goToStop(0.11).andThen(wrist.brake()),
-        wrist.runWith(() -> -operator.getLeftY()),
-        operator.leftStick()));
-
     drivetrain.registerTelemetry(logger::telemeterize);
     Locations.publish();
 
@@ -223,43 +212,53 @@ public class Main extends TimedRobot {
     driver.rightBumper().whileTrue(climber.runAt(1));
     driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
 
-    var feedReef = drivetrain.new FeedReefPose(lidar, new Transform2d(-1.0, 0.0, Rotation2d.kZero));
-    var driveToReef = drivetrain.new DriveTo(null, Pose2d.kZero);
+    var feedReef = drivetrain.new FeedReefPose(lidar, new Transform2d(Inches.of(-25.25), Inches.zero(), Rotation2d.kZero));
+    var driveToReef = drivetrain.new DriveTo(Pose2d.kZero, Pose2d.kZero);
         
     driver.a().whileTrue(new ParallelCommandGroup(
       // Poll the LiDAR.
       feedReef,
       // Feed the output to the drivetrain controller.
-      Commands.run(() -> driveToReef.setDestination(feedReef.get(), Pose2d.kZero)),
+      Commands.run(() -> {
+        var reefPose = feedReef.get();
+
+        driveToReef.setDestination(reefPose, Pose2d.kZero);
+        targetPose.set(reefPose);
+      })
       // Use the drivetrain controller to snap to the target position.
-      driveToReef
+      // driveToReef
     ));
 
     // Swerve.DriveTo cmd = drivetrain.new DriveTo(drivetrain.getState().Pose,
     // Pose2d.kZero);
 
-    WristAngle wristAngleCalc = new WristAngle(elevator, Locations.L4);
+    // WristAngle wristAngleCalc = new WristAngle(elevator, Locations.L4);
 
     // driver.start().whileTrue(cmd);
 
     /* Operator controls */
-
-    Command lidarTracking = lidar.new Subscription(xform -> {
-      targetPose.set(xform);
-    });
-
-    operator.x().whileTrue(lidarTracking);
-
+    elevator.setDefaultCommand(new Toggle(
+        elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()),
+        elevator.runWith(() -> -operator.getRightY()),
+        operator.rightStick()));
+    wrist.setPosition(0);
+    elevator.setPosition(0);
+    wrist.setDefaultCommand(new Toggle(
+        wrist.goToStop(0.11).andThen(wrist.brake()),
+        wrist.runWith(() -> -operator.getLeftY()),
+        operator.leftStick()));
     // Lock elevator, but manual wrist
     operator.a().whileTrue(new DeferredCommand(() -> elevator.goTo(elevator.position()), Set.of(elevator))
         .alongWith(wrist.runWith(() -> -operator.getLeftY())));
 
     operator.b().whileTrue(toTargetHeight());
 
+    operator.x().whileTrue(climber.runAt(-1));
+
     // Level Shifter
-    operator.povUp().or(operator.povUpLeft()).or(operator.povUpRight()).debounce(0.5)
+    operator.povUp().or(operator.povUpLeft()).or(operator.povUpRight()).debounce(0.1, DebounceType.kFalling)
         .onTrue(setTarget(() -> target.next()));
-    operator.povDown().or(operator.povDownLeft()).or(operator.povDownRight()).debounce(0.5)
+    operator.povDown().or(operator.povDownLeft()).or(operator.povDownRight()).debounce(0.1, DebounceType.kFalling)
         .onTrue(setTarget(() -> target.prev()));
 
     // Control the coral receptacle with the right trigger & bumper.

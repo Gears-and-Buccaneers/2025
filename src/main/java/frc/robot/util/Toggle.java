@@ -15,14 +15,17 @@ public class Toggle extends Command {
         this.cmdA = cmdA;
         this.cmdB = cmdB;
         this.toggle = toggle;
+
+        addRequirements(cmdA.getRequirements());
+        addRequirements(cmdB.getRequirements());
     }
 
     @Override
     public void initialize() {
         if (useA)
-            cmdA.schedule();
+            cmdA.initialize();
         else
-            cmdB.schedule();
+            cmdB.initialize();
     }
 
     @Override
@@ -35,14 +38,19 @@ public class Toggle extends Command {
             initialize();
         }
 
+        if (useA)
+            cmdA.execute();
+        else
+            cmdB.execute();
+
         previous = current;
     }
 
     @Override
     public void end(boolean interrupted) {
         if (useA)
-            cmdA.cancel();
+            cmdA.end(interrupted);
         else
-            cmdB.cancel();
+            cmdB.end(interrupted);
     }
 }

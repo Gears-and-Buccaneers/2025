@@ -19,10 +19,10 @@
 #elif __APPLE__
 #define CHANNEL "/dev/tty.SLAB_USBtoUART"
 #else
-#define CHANNEL "/dev/ttyUSB1"
+#define CHANNEL "/dev/ttyUSB0"
 #endif
 
-#define BAUDRATE 256000
+#define BAUDRATE 115200
 
 #define JNI_VERSION JNI_VERSION_1_6
 
