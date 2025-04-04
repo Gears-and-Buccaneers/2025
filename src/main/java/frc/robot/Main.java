@@ -44,6 +44,7 @@ import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
+import frc.robot.subsystems.Swerve.DriveTo;
 import frc.robot.subsystems.CoralSensor;
 import frc.robot.util.Level;
 import frc.robot.util.RateLimiter;
@@ -169,14 +170,17 @@ public class Main extends TimedRobot {
     SmartDashboard.putData("Autonomous path", autoChooser);
 
     NamedCommands.registerCommand("L4", Commands.deferredProxy(
-      () -> elevator.goTo(target.height).alongWith(elevator.atPoint(target.height)
-          .andThen(
-              wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)),
-              coral.runAt(-1).withTimeout(0.7),
-              wrist.goToStop(.1)
+      () -> elevator.goTo(target.height).alongWith(
+        drivetrain.snapTo(Locations.branches)
+        .andThen(
+          elevator.atPoint(target.height),
+          wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)),
+          coral.runAt(-1).withTimeout(0.7),
+          wrist.goToStop(.1)
         )))
     );
-    NamedCommands.registerCommand("Intake", coral.runAt(1.0).alongWith(wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
+
+    NamedCommands.registerCommand("Intake", coral.runAt(1.0).alongWith(drivetrain.snapTo(Locations.station), wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
 
     StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
         .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
