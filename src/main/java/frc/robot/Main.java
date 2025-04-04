@@ -169,7 +169,7 @@ public class Main extends TimedRobot {
     autoChooser.addOption("pre87", drivetrain.applyRequest(() -> robotCentric.withVelocityX(0.3)));
     SmartDashboard.putData("Autonomous path", autoChooser);
 
-    NamedCommands.registerCommand("L4", Commands.deferredProxy(
+    Command l4 = Commands.deferredProxy(
       () -> elevator.goTo(target.height).alongWith(
         drivetrain.snapTo(Locations.branches)
         .andThen(
@@ -177,8 +177,9 @@ public class Main extends TimedRobot {
           wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)),
           coral.runAt(-1).withTimeout(0.7),
           wrist.goToStop(.1)
-        )))
-    );
+        )));
+
+    NamedCommands.registerCommand("L4", l4);
 
     NamedCommands.registerCommand("Intake", coral.runAt(1.0).alongWith(drivetrain.snapTo(Locations.station), wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
 
