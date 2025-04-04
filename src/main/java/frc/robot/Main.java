@@ -149,7 +149,7 @@ public class Main extends TimedRobot {
     return Commands.deferredProxy(
         () -> elevator.goTo(target.height).alongWith(elevator.atPoint(target.height)
             .andThen(
-                wrist.goTo(-0.086))));
+                wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)))));
                 /* ,
                 coral.runAt(-1).withTimeout(0.7),
                 wrist.goToStop(.1) */
@@ -165,16 +165,18 @@ public class Main extends TimedRobot {
     CanBridge.runTCP();
 
     autoChooser = AutoBuilder.buildAutoChooser();
-    autoChooser.addOption("Leave", drivetrain.applyRequest(() -> robotCentric.withVelocityX(0.3)));
+    autoChooser.addOption("pre87", drivetrain.applyRequest(() -> robotCentric.withVelocityX(0.3)));
     SmartDashboard.putData("Autonomous path", autoChooser);
 
-    NamedCommands.registerCommand("Elevator To Low", elevator.goTo(0.0));
-    NamedCommands.registerCommand("Elevator At Low", elevator.atPoint(0.0));
-
-    NamedCommands.registerCommand("Elevator To Mid", elevator.goTo(50.0));
-    NamedCommands.registerCommand("Elevator At Mid", elevator.atPoint(50.0));
-
-    NamedCommands.registerCommand("Eject Coral", coral.runAt(-1.0));
+    NamedCommands.registerCommand("L4", Commands.deferredProxy(
+      () -> elevator.goTo(target.height).alongWith(elevator.atPoint(target.height)
+          .andThen(
+              wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)),
+              coral.runAt(-1).withTimeout(0.7),
+              wrist.goToStop(.1)
+        )))
+    );
+    NamedCommands.registerCommand("Intake", coral.runAt(1.0).alongWith(wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
 
     StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
         .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
