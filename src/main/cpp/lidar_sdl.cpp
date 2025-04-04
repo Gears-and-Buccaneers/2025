@@ -16,7 +16,7 @@
 #include "sl_lidar.h"
 #include "sl_lidar_driver.h"
 
-#define WIDTH 0.30
+#define WIDTH 8
 
 #define ARRAY_LEN(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 
@@ -86,7 +86,7 @@ struct Camera {
 };
 
 int main() {
-	sl_u32 baudrate = 115200;
+	sl_u32 baudrate = 256000;
 	IChannel *_channel;
 
 #ifdef _WIN32

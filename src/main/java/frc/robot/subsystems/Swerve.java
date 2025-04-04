@@ -306,11 +306,9 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
 
             // While the lidar scan is running, consume its output.
             subscriber = xform -> {
-                aaa.set(xform);
                 // TODO: use the sensor's hardware timestamp.
                 timestamp = Utils.getCurrentTimeSeconds();
-                this.xform = xform;
-                dest = getState().Pose.plus(xform).plus(off);
+                // this.xform = xform;
             };
         }
 
@@ -318,17 +316,14 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
         public Pose2d get() {
             SmartDashboard.putNumber("LiDAR data timestamp", timestamp);
 
-            // // If we have no LiDAR data yet and we haven't initialised the nearest reef pose already, then choose the nearest reef tag.
-            // if (xform == null && dest == null) {
-            //     dest = getState().Pose;
-            //     // dest = nearest(Locations.reef).plus(off);
-            // // If we do have LiDAR data, use it to calculate the offset.
-            // } else if (xform != null) {
-            //     var pose = samplePoseAt(timestamp);
-            //     if (pose.isPresent()) dest = pose.get().plus(xform).plus(off);
-            // }
-
-            if (dest == null) return getState().Pose;
+            // If we have no LiDAR data yet and we haven't initialised the nearest reef pose already, then choose the nearest reef tag.
+            if (xform == null && dest == null) {
+                dest = nearest(Locations.reef).plus(off);
+            // If we do have LiDAR data, use it to calculate the offset.
+            } else if (xform != null) {
+                var pose = samplePoseAt(timestamp);
+                if (pose.isPresent()) dest = pose.get().plus(xform).plus(off);
+            }
 
             return dest;
         }

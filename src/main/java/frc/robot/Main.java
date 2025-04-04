@@ -166,7 +166,7 @@ public class Main extends TimedRobot {
     CanBridge.runTCP();
 
     autoChooser = AutoBuilder.buildAutoChooser();
-    autoChooser.addOption("pre87", drivetrain.applyRequest(() -> robotCentric.withVelocityX(0.3)));
+    autoChooser.addOption("Leave", drivetrain.applyRequest(() -> robotCentric.withVelocityX(0.3)));
     SmartDashboard.putData("Autonomous path", autoChooser);
 
     Command l4 = Commands.deferredProxy(
@@ -225,28 +225,27 @@ public class Main extends TimedRobot {
     // Climber controls.
     driver.rightBumper().whileTrue(climber.runAt(1));
     driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
+    
+    // driver.a().whileTrue(
+    //     new DeferredCommand(() -> {
+    //       Pose2d target = drivetrain.nearest(Locations.reef);
+    //       DriveTo driveTo = drivetrain.new DriveTo(target, Pose2d.kZero);
 
-    // var feedReef = drivetrain.new FeedReefPose(lidar, new Transform2d(Inches.of(-25.25), Inches.zero(), Rotation2d.kZero));
-    // var driveToReef = drivetrain.new DriveTo(Pose2d.kZero, Pose2d.kZero);
+    //       return lidar.new Subscription(d -> {
+    //         var curr = drivetrain.getState().Pose;
+    //         var diff = target.minus(curr);
+    //         driveTo.setDestination(curr.plus(new Transform2d(d + lidar.robotToLidar.getX(), diff.getY(), diff.getRotation())).plus(new Transform2d(-0.64, -(Locations.branchOffset - Locations.coralOffset), Rotation2d.kZero)), Pose2d.kZero);
+    //         driveTo.schedule();
+    //       });
+    //     }, Set.of())
+    // );
+
 
     // driver.a().whileTrue(new ParallelCommandGroup(
-    //   // Poll the LiDAR.
-    //   feedReef,
-    //   // Feed the output to the drivetrain controller.
-    //   Commands.run(() -> {
-    //     var reefPose = feedReef.get();
-
-    //     driveToReef.setDestination(reefPose, Pose2d.kZero);
-    //     targetPose.set(reefPose);
-    //   })
-    //   // Use the drivetrain controller to snap to the target position.
-    //   // driveToReef
+    //   drivetrain.snapTo(Locations.branches)
     // ));
 
-
-    driver.a().whileTrue(new ParallelCommandGroup(
-      drivetrain.snapTo(Locations.branches)
-    ));
+    driver.a().whileTrue(l4);
 
     // Swerve.DriveTo cmd = drivetrain.new DriveTo(drivetrain.getState().Pose,
     // Pose2d.kZero);

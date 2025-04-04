@@ -2,7 +2,7 @@ package frc.robot.subsystems;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
 
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -13,9 +13,9 @@ public class Lidar extends Command {
     // The drivetrain, which provides pose data.
     private final Swerve drivetrain;
     // The subscribers to the lidar data feed.
-    private final List<Consumer<Transform2d>> subscribers;
+    private final List<DoubleConsumer> subscribers;
     // The transformation from the robot origin to the lidar coordinate origin.
-    private final Transform2d robotToLidar;
+    public final Transform2d robotToLidar;
     // A native pointer to the driver state.
     private final long statePtr;
 
@@ -39,9 +39,9 @@ public class Lidar extends Command {
     }
 
     public class Subscription extends Command {
-        protected Consumer<Transform2d> subscriber;
+        protected DoubleConsumer subscriber;
 
-        public Subscription(Consumer<Transform2d> subscriber) {
+        public Subscription(DoubleConsumer subscriber) {
             this.subscriber = subscriber;
         }
 
@@ -82,9 +82,8 @@ public class Lidar extends Command {
     public native void stopMotor();
 
     // The data callback for line detections.
-    private void callback(Transform2d lidarToCenter) {
-        Transform2d robotToCenter = robotToLidar.plus(lidarToCenter);
-        for (var subscriber : subscribers) subscriber.accept(robotToCenter);
+    private void callback(double distance) {
+        for (var subscriber : subscribers) subscriber.accept(distance);
     }
 
     @Override

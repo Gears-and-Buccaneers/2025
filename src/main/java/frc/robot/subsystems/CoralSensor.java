@@ -21,7 +21,10 @@ public class CoralSensor implements Subsystem {
 
     @Override
     public void periodic() {
-        var hasCoral = distance.refresh().getValueAsDouble() < 0.1;
-        publisher.accept(hasCoral);
+        publisher.accept(hasCoral());
+    }
+
+    public boolean hasCoral() {
+        return distance.refresh().getValueAsDouble() < 0.1;
     }
 }

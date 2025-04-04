@@ -8,6 +8,8 @@ typedef struct {
 	double y_y;
 	// The product of the coordinates.
 	double x_y;
+	// The cotangent of the angle to the point.
+	double cot;
 } Point;
 
 // Adds point `b` to point `a`.
@@ -33,24 +35,31 @@ int measure_to_point(const sl_lidar_response_measurement_node_hq_t* m, Point* p)
 	double a = (m->angle_z_q14 / 16384.0) * M_PI_2;
 	double d = (m->dist_mm_q2 / 4.0) / 1000.0;
 
-	p->x = cos(a) * d;
-	p->y = sin(a) * d;
+	double c = cos(a);
+	double s = sin(a);
+
+	p->x = c * d;
+	p->y = s * d;
 
 	p->x_y = p->x * p->y;
 	p->y_y = p->y * p->y;
+
+	p->cot = c / s;
 
 	return 0;
 }
 
 // Stores the slope and y-intercept of a line.
 typedef struct {
-	double m, b;
+	double m, fact, b;
 } LsrBuf;
 
 // Perform least-squares regression on a parameter sum.
 void lsr(Point* s, int n, LsrBuf* b) {
 	b->m = (n * s->x_y - s->x * s->y) / (n * s->y_y - s->y * s->y);
 	b->b = (s->x - b->m * s->y) / n;
+
+	b->fact = b->b * sqrt(b->m * b->m + 1);
 }
 
 double eval(LsrBuf* line, double y) {
@@ -60,6 +69,13 @@ double eval(LsrBuf* line, double y) {
 // Find the error between a point an a regression line.
 double err(Point* p, LsrBuf* line) {
 	return fabs(p->x - eval(line, p->y));
+}
+
+double projected_dist(Point* a, Point* b, LsrBuf* line) {
+	double af = 1 / (line->m + a->cot);
+	double bf = 1 / (line->m + b->cot);
+
+	return abs(line->fact * (af - bf));
 }
 
 // Derives parameters for the best-fitting line directly in front of the sensor.
@@ -125,7 +141,7 @@ int find_line(
 		}
 
 		lsr(&sum, n, &line);
-	} while (left != right && (point_dist_sq(&nl, &cr) < width * width || point_dist_sq(&cl, &nr) < width * width));
+	} while (left != right && (sqrt(point_dist_sq(&nl, &cr)) < width || sqrt(point_dist_sq(&nl, &cr)) < width));
 
 	// Find the center x and y coordinates.
 	res->cy = (cl.y + cr.y) / 2;

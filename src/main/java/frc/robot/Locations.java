@@ -44,8 +44,8 @@ public class Locations {
     public static final double L3 = 47.59;
     public static final double L4 = 71.87;
 
-    private static double coralOffset = 0.05;
-    private static double branchOffset = 0.164;
+    public static double coralOffset = 0.05;
+    public static double branchOffset = 0.164;
 
     public static Pose2d[] station = genPoses(new int[] { 1, 2, 13, 12 },
             new Translation2d(0.5, -coralOffset), Inches.of(8.0).in(Meters), -4, 4);

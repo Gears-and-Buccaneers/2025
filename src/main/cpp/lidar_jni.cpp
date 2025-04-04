@@ -70,7 +70,7 @@ jint JNI_OnLoad(JavaVM *vm, __attribute__((unused)) void *reserved) {
     GET(Lidar_statePtr, GetFieldID(Lidar, "statePtr", "J"));
 
     // Load class methods.
-    GET(Lidar_callback, GetMethodID(Lidar, "callback", "(Ledu/wpi/first/math/geometry/Transform2d;)V"));
+    GET(Lidar_callback, GetMethodID(Lidar, "callback", "(D)V"));
 
     // Load class constructors.
     GET(Rotation2d_init, GetMethodID(Rotation2d, "<init>", "(DD)V"));
@@ -151,13 +151,15 @@ void Java_frc_robot_subsystems_Lidar_execute(JNIEnv* env, jobject self) {
 
     st->drv->ascendScanData(nodes, count);
 
-    LineRes res;
-    if (find_line(WIDTH, nodes + count - 1, nodes, &res) == -1) return;
+    double dist = (nodes[0].dist_mm_q2 / 4.0) / 1000.0;
 
-    jobject rot = env->NewObject(Rotation2d, Rotation2d_init, res.rx, res.ry);
-    jobject xfm = env->NewObject(Transform2d, Transform2d_init, res.cx, res.cy, rot);
+    // LineRes res;
+    // if (find_line(WIDTH, nodes + count - 1, nodes, &res) == -1) return;
 
-    env->CallVoidMethod(self, Lidar_callback, xfm);
+    // jobject rot = env->NewObject(Rotation2d, Rotation2d_init, res.rx, res.ry);
+    // jobject xfm = env->NewObject(Transform2d, Transform2d_init, res.cx, res.cy, rot);
+
+    env->CallVoidMethod(self, Lidar_callback, dist);
 }
 
 void Java_frc_robot_subsystems_Lidar_end(JNIEnv* env, jobject self, __attribute__((unused)) jboolean interrupted) {
