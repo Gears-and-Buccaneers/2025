@@ -72,8 +72,8 @@ public class Swerve extends TunerSwerveDrivetrain implements Subsystem {
     private final ProfiledPIDController rPID = new ProfiledPIDController(rotation.kP, rotation.kI, rotation.kD,
             rotationConstraints);
 
-    private double translationDeadband = 0;
-    private double rotationDeadband = Math.toRadians(0);
+    private double translationDeadband = 0.01;
+    private double rotationDeadband = Math.toRadians(5);
 
     private final SwerveRequest.FieldCentric fieldCentric = new SwerveRequest.FieldCentric();
 

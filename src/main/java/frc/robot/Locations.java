@@ -58,7 +58,7 @@ public class Locations {
     public static Pose2d[] reef = genPoses(reefIds, Translation2d.kZero, 0, 0, 0);
 
     public static Pose2d[] branches = genPoses(reefIds,
-            new Translation2d(0.64, branchOffset - coralOffset), branchOffset * 2, 0, 1);
+            new Translation2d(0.75, branchOffset - coralOffset), branchOffset * 2, 0, 1);
 
     public static IntPredicate branchIsRed = i -> i < 12;
     public static IntPredicate branchIsLeft = i -> switch (i % 12) {

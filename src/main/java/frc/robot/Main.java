@@ -40,11 +40,9 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.DeferredCommand;
 import edu.wpi.first.wpilibj2.command.InstantCommand;
-import edu.wpi.first.wpilibj2.command.ParallelCommandGroup;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.Swerve;
-import frc.robot.subsystems.Swerve.DriveTo;
 import frc.robot.subsystems.CoralSensor;
 import frc.robot.util.Level;
 import frc.robot.util.RateLimiter;
@@ -88,7 +86,7 @@ public class Main extends TimedRobot {
     c.Slot0.kG = 17;
 
     c.MotionMagic.MotionMagicCruiseVelocity = 9999;
-    c.MotionMagic.MotionMagicAcceleration = 125;
+    c.MotionMagic.MotionMagicAcceleration = 80;
     c.MotionMagic.MotionMagicJerk = 600;
   }, 1.0, 0.3, 25, 26);
   public final MotorSystem wrist = new MotorSystem((i, c) -> {
@@ -150,11 +148,22 @@ public class Main extends TimedRobot {
     return Commands.deferredProxy(
         () -> elevator.goTo(target.height).alongWith(elevator.atPoint(target.height)
             .andThen(
-                wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)))));
-                /* ,
-                coral.runAt(-1).withTimeout(0.7),
-                wrist.goToStop(.1) */
+                wrist.goToStop(-0.086).alongWith(coral.runAt(1.0).asProxy()))));
+    /*
+     * ,
+     * coral.runAt(-1).withTimeout(0.7),
+     * wrist.goToStop(.1)
+     */
   }
+
+  Toggle elevatorToggle = new Toggle(
+      elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()),
+      elevator.runWith(() -> -operator.getRightY()),
+      operator.rightStick());
+  Toggle wristToggle = new Toggle(
+      wrist.goToStop(0.11).andThen(wrist.brake()),
+      wrist.runWith(() -> -operator.getLeftY()),
+      operator.leftStick());
 
   public static void main(String... args) {
     RobotBase.startRobot(Main::new);
@@ -165,23 +174,25 @@ public class Main extends TimedRobot {
 
     CanBridge.runTCP();
 
+    Command l4 = Commands.deferredProxy(
+        () -> elevator.goTo(target.height).raceWith(
+            drivetrain.snapTo(Locations.branches)
+                .andThen(
+                    drivetrain.applyRequest(() -> brake).alongWith(
+                        elevator.atPoint(target.height).andThen(
+                            wrist.goToStop(-0.086).raceWith(coral.runAt(1.0)),
+                            coral.runAt(-1).alongWith(
+                                wrist.brake().withTimeout(1).andThen(wrist.goToStop(.1))))))));
+
+    Command intake = drivetrain.snapTo(Locations.station).asProxy().andThen(coral.runAt(1.0)
+        .alongWith(drivetrain.snapTo(Locations.station), wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
+
+    NamedCommands.registerCommand("L4", l4);
+    NamedCommands.registerCommand("Intake", intake);
+
     autoChooser = AutoBuilder.buildAutoChooser();
     autoChooser.addOption("Leave", drivetrain.applyRequest(() -> robotCentric.withVelocityX(0.3)));
     SmartDashboard.putData("Autonomous path", autoChooser);
-
-    Command l4 = Commands.deferredProxy(
-      () -> elevator.goTo(target.height).alongWith(
-        drivetrain.snapTo(Locations.branches)
-        .andThen(
-          elevator.atPoint(target.height),
-          wrist.goToStop(-0.086).alongWith(coral.runAt(1.0)),
-          coral.runAt(-1).withTimeout(0.7),
-          wrist.goToStop(.1)
-        )));
-
-    NamedCommands.registerCommand("L4", l4);
-
-    NamedCommands.registerCommand("Intake", coral.runAt(1.0).alongWith(drivetrain.snapTo(Locations.station), wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
 
     StructPublisher<Pose2d> targetPose = NetworkTableInstance.getDefault()
         .getStructTopic("Lidar Target Pose", Pose2d.struct).publish();
@@ -225,27 +236,30 @@ public class Main extends TimedRobot {
     // Climber controls.
     driver.rightBumper().whileTrue(climber.runAt(1));
     driver.rightTrigger(0.5).whileTrue(climber.runAt(-1));
-    
-    // driver.a().whileTrue(
-    //     new DeferredCommand(() -> {
-    //       Pose2d target = drivetrain.nearest(Locations.reef);
-    //       DriveTo driveTo = drivetrain.new DriveTo(target, Pose2d.kZero);
 
-    //       return lidar.new Subscription(d -> {
-    //         var curr = drivetrain.getState().Pose;
-    //         var diff = target.minus(curr);
-    //         driveTo.setDestination(curr.plus(new Transform2d(d + lidar.robotToLidar.getX(), diff.getY(), diff.getRotation())).plus(new Transform2d(-0.64, -(Locations.branchOffset - Locations.coralOffset), Rotation2d.kZero)), Pose2d.kZero);
-    //         driveTo.schedule();
-    //       });
-    //     }, Set.of())
+    // driver.a().whileTrue(
+    // new DeferredCommand(() -> {
+    // Pose2d target = drivetrain.nearest(Locations.reef);
+    // DriveTo driveTo = drivetrain.new DriveTo(target, Pose2d.kZero);
+
+    // return lidar.new Subscription(d -> {
+    // var curr = drivetrain.getState().Pose;
+    // var diff = target.minus(curr);
+    // driveTo.setDestination(curr.plus(new Transform2d(d +
+    // lidar.robotToLidar.getX(), diff.getY(), diff.getRotation())).plus(new
+    // Transform2d(-0.64, -(Locations.branchOffset - Locations.coralOffset),
+    // Rotation2d.kZero)), Pose2d.kZero);
+    // driveTo.schedule();
+    // });
+    // }, Set.of())
     // );
 
-
     // driver.a().whileTrue(new ParallelCommandGroup(
-    //   drivetrain.snapTo(Locations.branches)
+    // drivetrain.snapTo(Locations.branches)
     // ));
 
     driver.a().whileTrue(l4);
+    driver.b().whileTrue(intake);
 
     // Swerve.DriveTo cmd = drivetrain.new DriveTo(drivetrain.getState().Pose,
     // Pose2d.kZero);
@@ -255,16 +269,9 @@ public class Main extends TimedRobot {
     // driver.start().whileTrue(cmd);
 
     /* Operator controls */
-    elevator.setDefaultCommand(new Toggle(
-        elevator.goTo(0.0).raceWith(elevator.atPoint(0.0)).andThen(elevator.coast()),
-        elevator.runWith(() -> -operator.getRightY()),
-        operator.rightStick()));
-    wrist.setPosition(0);
+    elevator.setDefaultCommand(elevatorToggle);
+    wrist.setDefaultCommand(wristToggle);
     elevator.setPosition(0);
-    wrist.setDefaultCommand(new Toggle(
-        wrist.goToStop(0.11).andThen(wrist.brake()),
-        wrist.runWith(() -> -operator.getLeftY()),
-        operator.leftStick()));
     // Lock elevator, but manual wrist
     operator.a().whileTrue(new DeferredCommand(() -> elevator.goTo(elevator.position()), Set.of(elevator))
         .alongWith(wrist.runWith(() -> -operator.getLeftY())));
@@ -275,9 +282,9 @@ public class Main extends TimedRobot {
 
     // Level Shifter
     operator.povUp().or(operator.povUpLeft()).or(operator.povUpRight()).debounce(0.1, DebounceType.kFalling)
-        .onTrue(setTarget(() -> target.next()));
+        .onTrue(setTarget(() -> target.next()).ignoringDisable(true));
     operator.povDown().or(operator.povDownLeft()).or(operator.povDownRight()).debounce(0.1, DebounceType.kFalling)
-        .onTrue(setTarget(() -> target.prev()));
+        .onTrue(setTarget(() -> target.prev()).ignoringDisable(true));
 
     // Control the coral receptacle with the right trigger & bumper.
     operator.rightTrigger(0.5).whileTrue(coral.runAt(-1.0));
@@ -288,16 +295,17 @@ public class Main extends TimedRobot {
     operator.leftBumper().whileTrue(algae.runAt(-1.0));
 
     // operator.a().whileTrue(elevator.goTo(L2));
-
   }
 
   @Override
   public void robotInit() {
+    leds.setColor(0x000000);
   }
 
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
+
   }
 
   @Override
@@ -314,6 +322,9 @@ public class Main extends TimedRobot {
 
   @Override
   public void autonomousInit() {
+    elevatorToggle.reset();
+    wristToggle.reset();
+
     m_autonomousCommand = autoChooser.getSelected();
 
     if (m_autonomousCommand != null) {
@@ -336,8 +347,6 @@ public class Main extends TimedRobot {
     }
 
     lidar.startMotor();
-
-    updateLED();
   }
 
   NetworkTableInstance nt = NetworkTableInstance.getDefault();
@@ -354,7 +363,6 @@ public class Main extends TimedRobot {
   @Override
   public void teleopExit() {
     lidar.stopMotor();
-    leds.setColor(0x000000);
   }
 
   @Override

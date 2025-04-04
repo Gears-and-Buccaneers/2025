@@ -12,14 +12,18 @@ import edu.wpi.first.networktables.NetworkTable;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
 import edu.wpi.first.networktables.StructPublisher;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Telemetry {
+        Field2d field2d = new Field2d();
     /**
      * Construct a telemetry object, with the specified max speed of the robot
      * 
      * @param maxSpeed Maximum speed in meters per second
      */
     public Telemetry() {
+        SmartDashboard.putData("Field pose", field2d);
         // SignalLogger.start();
     }
 
@@ -51,6 +55,7 @@ public class Telemetry {
      */
     public void telemeterize(SwerveDriveState state) {
         /* Telemeterize the swerve drive state */
+        field2d.setRobotPose(state.Pose);
         drivePose.set(state.Pose);
         driveSpeeds.set(state.Speeds);
         driveModuleStates.set(state.ModuleStates);

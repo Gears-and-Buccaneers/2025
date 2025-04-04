@@ -20,6 +20,10 @@ public class Toggle extends Command {
         addRequirements(cmdB.getRequirements());
     }
 
+    public void reset() {
+        useA = true;
+    }
+
     @Override
     public void initialize() {
         if (useA)
