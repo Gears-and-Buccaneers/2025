@@ -8,8 +8,8 @@ typedef struct {
 	double y_y;
 	// The product of the coordinates.
 	double x_y;
-	// The cotangent of the angle to the point.
-	double cot;
+	// The sine and cosine of the angle to the point.
+	double sin, cos;
 } Point;
 
 // Adds point `b` to point `a`.
@@ -20,14 +20,6 @@ void point_add(Point* a, Point* b) {
 	a->y_y += b->y_y;
 }
 
-// Finds the square distance between points.
-double point_dist_sq(Point* a, Point* b) {
-	double xd = a->x - b->x;
-	double yd = a->y - b->y;
-
-	return xd * xd + yd * yd;
-}
-
 // Converts a lidar measurement into a point. Returns 1 if this point should be skipped.
 int measure_to_point(const sl_lidar_response_measurement_node_hq_t* m, Point* p) {
 	if (m->quality == 0) return 1;
@@ -35,16 +27,14 @@ int measure_to_point(const sl_lidar_response_measurement_node_hq_t* m, Point* p)
 	double a = (m->angle_z_q14 / 16384.0) * M_PI_2;
 	double d = (m->dist_mm_q2 / 4.0) / 1000.0;
 
-	double c = cos(a);
-	double s = sin(a);
+	p->cos = cos(a);
+	p->sin = sin(a);
 
-	p->x = c * d;
-	p->y = s * d;
+	p->x = p->cos * d;
+	p->y = p->sin * d;
 
 	p->x_y = p->x * p->y;
 	p->y_y = p->y * p->y;
-
-	p->cot = c / s;
 
 	return 0;
 }
@@ -72,8 +62,8 @@ double err(Point* p, LsrBuf* line) {
 }
 
 double projected_dist(Point* a, Point* b, LsrBuf* line) {
-	double af = 1 / (line->m + a->cot);
-	double bf = 1 / (line->m + b->cot);
+	double af = a->sin / (line->m * a->sin + a->cos);
+	double bf = b->sin / (line->m * b->sin + b->cos);
 
 	return abs(line->fact * (af - bf));
 }
@@ -141,7 +131,7 @@ int find_line(
 		}
 
 		lsr(&sum, n, &line);
-	} while (left != right && (sqrt(point_dist_sq(&nl, &cr)) < width || sqrt(point_dist_sq(&nl, &cr)) < width));
+	} while (projected_dist(&nl, &cr, &line) < width || projected_dist(&cl, &nr, &line) < width);
 
 	// Find the center x and y coordinates.
 	res->cy = (cl.y + cr.y) / 2;
