@@ -121,9 +121,13 @@ public class Main extends TimedRobot {
 
   public final CoralSensor coralSensor = new CoralSensor(0);
 
-  public final AprilTags tags = new AprilTags("camera", new Transform3d(
+  public final AprilTags lower = new AprilTags("camera", new Transform3d(
       new Translation3d(Inches.of(15.0 - 4.75), Inches.of(-15.0 + 2.375), Inches.zero()), Rotation3d.kZero),
       drivetrain);
+
+  public final AprilTags upper = new AprilTags("camera1", new Transform3d(
+    new Translation3d(Inches.of(15.0 - 8.5 + 1.75), Inches.of(-15.0 + 2 + 0.875), Inches.of(40.125)), new Rotation3d(Degrees.of(180), Degrees.of(36), Degrees.zero())),
+    drivetrain);
 
   public final Lidar lidar = new Lidar(drivetrain, new Transform2d(0.211, 0.165, Rotation2d.kZero));
 
@@ -174,18 +178,34 @@ public class Main extends TimedRobot {
 
     CanBridge.runTCP();
 
-    Command l4 = Commands.deferredProxy(
-        () -> elevator.goTo(target.height).raceWith(
-            drivetrain.snapTo(Locations.branches)
+    Command l4 = Commands.defer(
+        () -> wrist.goToStop(0.11)
+          .andThen(
+            elevator.goTo(target.height)
+              .raceWith(
+                drivetrain.snapTo(Locations.branches)
                 .andThen(
-                    drivetrain.applyRequest(() -> brake).alongWith(
-                        elevator.atPoint(target.height).andThen(
-                            wrist.goToStop(-0.086).raceWith(coral.runAt(1.0)),
-                            coral.runAt(-1).alongWith(
-                                wrist.brake().withTimeout(1).andThen(wrist.goToStop(.1))))))));
+                    drivetrain.applyRequest(() -> brake)
+                      .raceWith(
+                        elevator.atPoint(target.height)
+                          .andThen(
+                            wrist.goToStop(-0.086)
+                              .raceWith(coral.runAt(1.0)),
+                            coral.runAt(-1)
+                              .raceWith(
+                                wrist.brake().withTimeout(1)
+                                  .andThen(wrist.goToStop(.1))
+                              )
+                          )
+                      )
+                  )
+              )
+          ).andThen(new InstantCommand(() -> leds.setColor(0xFF0000))),
+          Set.of(elevator, wrist, drivetrain, coral)
+      ).andThen(coral.brake().raceWith(elevator.goToStop(0)));
 
-    Command intake = drivetrain.snapTo(Locations.station).asProxy().andThen(coral.runAt(1.0)
-        .alongWith(drivetrain.snapTo(Locations.station), wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
+    Command intake = drivetrain.snapTo(Locations.station).andThen(coral.runAt(1.0)
+        .alongWith(wrist.goToStop(intakePosition)).until(coralSensor::hasCoral));
 
     NamedCommands.registerCommand("L4", l4);
     NamedCommands.registerCommand("Intake", intake);

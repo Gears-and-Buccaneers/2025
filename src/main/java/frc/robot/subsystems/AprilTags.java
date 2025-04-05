@@ -17,12 +17,14 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 public class AprilTags implements Subsystem {
     private final PhotonCamera m_camera;
     private final PhotonPoseEstimator m_photonPoseEstimator;
-    private final StructPublisher<Pose3d> posePublisher = NetworkTableInstance.getDefault().getStructTopic("PhotonVision Pose Estimate", Pose3d.struct).publish();
+    private final StructPublisher<Pose3d> posePublisher;
 
     private final Swerve m_drivetrain;
 
     public AprilTags(String cameraName, Transform3d robotToCamera, Swerve drivetrain) {
         var fieldLayout = AprilTagFieldLayout.loadField(AprilTagFields.kDefaultField);
+
+        posePublisher = NetworkTableInstance.getDefault().getTable("Pose Estimates").getStructTopic(cameraName, Pose3d.struct).publish();
 
         m_camera = new PhotonCamera(cameraName);
         m_photonPoseEstimator = new PhotonPoseEstimator(fieldLayout, PoseStrategy.MULTI_TAG_PNP_ON_COPROCESSOR,

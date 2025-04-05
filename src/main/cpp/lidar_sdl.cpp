@@ -16,7 +16,7 @@
 #include "sl_lidar.h"
 #include "sl_lidar_driver.h"
 
-#define WIDTH 8
+#define WIDTH 8.0
 
 #define ARRAY_LEN(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 

@@ -10,6 +10,8 @@ typedef struct {
 	double x_y;
 	// The sine and cosine of the angle to the point.
 	double sin, cos;
+	// The distance to the point.
+	double dist;
 } Point;
 
 // Adds point `b` to point `a`.
@@ -25,13 +27,13 @@ int measure_to_point(const sl_lidar_response_measurement_node_hq_t* m, Point* p)
 	if (m->quality == 0) return 1;
 
 	double a = (m->angle_z_q14 / 16384.0) * M_PI_2;
-	double d = (m->dist_mm_q2 / 4.0) / 1000.0;
+	p->dist = (m->dist_mm_q2 / 4.0) / 1000.0;
 
 	p->cos = cos(a);
 	p->sin = sin(a);
 
-	p->x = p->cos * d;
-	p->y = p->sin * d;
+	p->x = p->cos * p->dist;
+	p->y = p->sin * p->dist;
 
 	p->x_y = p->x * p->y;
 	p->y_y = p->y * p->y;
@@ -52,13 +54,21 @@ void lsr(Point* s, int n, LsrBuf* b) {
 	b->fact = b->b * sqrt(b->m * b->m + 1);
 }
 
-double eval(LsrBuf* line, double y) {
-	return line->m * y + line->b;
+double dist(LsrBuf* line, Point* p) {
+	return line->b / (line->m * p->sin + p->cos);
+}
+
+void eval(LsrBuf* line, Point* p, double* x, double* y) {
+	double d = dist(line, p);
+
+	*x = -d * p->sin;
+	*y =  d * p->cos;
 }
 
 // Find the error between a point an a regression line.
-double err(Point* p, LsrBuf* line) {
-	return fabs(p->x - eval(line, p->y));
+double err(LsrBuf* line, Point* p) {
+	double d = line->b / (line->m * p->sin + p->cos);
+	return fabs(p->dist - dist(line, p));
 }
 
 double projected_dist(Point* a, Point* b, LsrBuf* line) {
@@ -102,6 +112,8 @@ int find_line(
 	point_add(&sum, &cr);
 	int n = 2;
 
+	lsr(&sum, n, &line);
+
 	// Initialise the left and right starting points.
 	do if (left == right) return -1; while (measure_to_point( left--, &nl));
 	do if (left == right) return -1; while (measure_to_point(right++, &nr));
@@ -110,7 +122,7 @@ int find_line(
 		// Increment the set size.
 		n += 1;
 		// Accept the point with the lower error to the regression line.
-		if (err(&nl, &line) < err(&nr, &line)) {
+		if (err(&line, &nl) < err(&line, &nr)) {
 			point_add(&sum, &nl);
 			cl = nl;
 
@@ -134,8 +146,13 @@ int find_line(
 	} while (projected_dist(&nl, &cr, &line) < width || projected_dist(&cl, &nr, &line) < width);
 
 	// Find the center x and y coordinates.
-	res->cy = (cl.y + cr.y) / 2;
-	res->cx = eval(&line, res->cy);
+	double ax, ay, bx, by;
+
+	eval(&line, &cl, &ax, &ay);
+	eval(&line, &cr, &bx, &by);
+
+	res->cx = (ax + bx) / 2;
+	res->cy = (ay + by) / 2;
 
 	// Find the vector of the line.
 	res->rx = 1.0 / sqrt(line.m * line.m + 1);
